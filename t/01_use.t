@@ -1,6 +1,7 @@
 use v6;
-use Test::More;
+use Test;
+use Cache::Memcached;
 
-use_ok('Cache::Memcached');
+ok(1, "loaded");
 
 done_testing;
