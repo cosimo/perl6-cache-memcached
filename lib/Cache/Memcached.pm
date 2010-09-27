@@ -25,25 +25,30 @@ use fields qw{
 
 has Int   $!debug is rw;
 has Bool  $!no_rehash is rw;
-has       %.stats is rw;
+has       %!stats is rw;
 has Int   $.compress_threshold is rw;
 has Bool  $.compress_enable is rw;
-has       &.stat_callback is rw;
 has Bool  $.readonly is rw;
+has       &.stat_callback is rw;
 has       $.select_timeout is rw;
-has Str   $.namespace is rw;
-has Int   $.namespace_len is rw;
-has Array @!servers is rw;
-has       $.active  is rw;
+has Str   $!namespace is rw = "";
+has Int   $!namespace_len is rw = 0;
+has       @!servers is rw = ();
+has       $!active  is rw;
 has       @.buckets is rw;
 has Str   $!pref_ip is rw;
-has Int   $.bucketcount is rw;
-has       $!_single_sock is rw;
+has Int   $!bucketcount is rw = 0;
+has       $!_single_sock is rw = False;
 has       $!_stime;
 has Int   $!connect_timeout is rw;
 has       &.cb_connect_fail is rw;
-has Str   $.parser_class is rw = 'Cache::Memcached::GetParser';
-has       @.buck2sock is rw;
+#as Str   $.parser_class is rw = 'Cache::Memcached::GetParser';
+has       @!buck2sock is rw;
+
+submethod BUILD {
+    say "Setting servers: ", @!servers;
+    self.set_servers(@!servers);
+}
 
 # Flag definitions
 method F_STORABLE () { return 1 }
@@ -119,8 +124,8 @@ sub set_servers {
 }
 =end pod
 
-method set_servers (Array @servers) {
-    unless @servers { @servers = () }
+method set_servers (@servers) {
+
     @!servers = @servers;
     $!active = +@servers;
 
@@ -514,7 +519,6 @@ method get_sock ($key) {
 
     # TODO $key array
     my $hv = _hashfunc($key);
-    my $real_key = $key;
     my $tries = 0;
 
     while $tries++ < 20 {
@@ -522,7 +526,7 @@ method get_sock ($key) {
         my $sock = $.sock_to_host($host);
         return $sock if $sock;
         return if $!no_rehash;
-        $hv += _hashfunc($tries ~ $real_key); # stupid, but works
+        $hv += _hashfunc($tries ~ $key); # stupid, but works
     }
 
     return;
@@ -949,20 +953,29 @@ sub get {
 
     return $r->{$kval};
 }
-=end
+=end pod
 
 method get ($key) {
 
-    # TODO: make a fast path for this?  or just keep using get_multi?
-    my $r = $.get_multi($key);
-    my $kval = ref $key ? $key->[1] : $key;
+    my $hv = _hashfunc($key);
+    say "get(): hash value '$hv'";
 
-    # key reconstituted from server won't have utf8 on, so turn it off on input
-    # scalar to allow hash lookup to succeed
-    #Encode::_utf8_off($kval) if Encode::is_utf8($kval);
+    my $sock = $.get_sock($key);
+    say "get(): socket '$sock'";
 
-    return $r->{$kval};
+    my $full_key = $!namespace ~ $key;
+    say "get(): full key '$full_key'";
 
+    my $get_cmd = "get $full_key\r\n";
+    say "get(): command '$get_cmd'";
+
+    my @res = $.run_command($sock, $get_cmd);
+
+    %!stats<get>++;
+
+    say "memcache: got ", @res.perl;
+
+    return @res;
 }
 
 =begin pod
@@ -1207,11 +1220,11 @@ sub _hashfunc {
 }
 =end pod
 
-method _hashfunc(Str $key) {
-    my $hash = String::CRC32.crc32($key);
-    $hash +>= 16;
-    $hash +&= 0x7FFF;
-    return $hash;
+sub _hashfunc(Str $key) {
+    my $crc = String::CRC32.crc32($key);
+    $crc +>= 16;
+    $crc +&= 0x7FFF;
+    return $crc;
 }
 
 =begin pod
