@@ -1,7 +1,7 @@
 use v6;
 use String::CRC32;
 
-class Cache::Memcached:auth<cosimo>:ver<0.01>;
+class Cache::Memcached:auth<cosimo>:ver<0.02>;
 
 =begin pod
 use Storable ();
