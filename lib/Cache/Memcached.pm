@@ -1,7 +1,7 @@
 use v6;
 use String::CRC32;
 
-class Cache::Memcached:auth<cosimo>:ver<0.02>;
+class Cache::Memcached:auth<cosimo>:ver<0.03>;
 
 =begin pod
 use Storable ();
@@ -67,7 +67,7 @@ my $HAVE_XS = eval "use Cache::Memcached::GetParserXS; 1;";
 $HAVE_XS = 0 if $ENV{NO_XS};
 =end pod
 
-our $VERSION       = '0.01';
+our $VERSION       = '0.03';
 our $HAVE_ZLIB     = 0;
 our $HAVE_SOCKET6  = 0;
 our $HAVE_XS       = 0;
