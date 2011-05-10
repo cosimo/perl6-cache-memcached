@@ -1,7 +1,7 @@
 use v6;
 use String::CRC32;
 
-class Cache::Memcached:auth<cosimo>:ver<0.03>;
+class Cache::Memcached:auth<cosimo>:ver<0.04>;
 
 =begin pod
 use Storable ();
@@ -347,15 +347,13 @@ method _connect_sock ($sock, $sin, $timeout = 0.25) {
     #my $ret = connect($sock, $sin);
 
     # TODO FIXME
-    my $hostname = 'localhost';
+    my $host = 'localhost';
     my $port = 11211;
 
-    my $sock_obj = IO::Socket::INET.new;
-    my $ret = $sock_obj.open($hostname, $port, :bin);
+    my $sock_obj = IO::Socket::INET.new(:$host, :$port);
 
     # TODO non-blocking sockets support yanked for now
-
-    return $ret;
+    return $sock_obj;
 }
 
 =begin pod
@@ -1221,7 +1219,7 @@ sub _hashfunc {
 =end pod
 
 sub _hashfunc(Str $key) {
-    my $crc = String::CRC32.crc32($key);
+    my $crc = String::CRC32::crc32($key);
     $crc +>= 16;
     $crc +&= 0x7FFF;
     return $crc;
