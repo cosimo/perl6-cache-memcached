@@ -46,6 +46,12 @@ has       &.cb_connect_fail is rw;
 has       @!buck2sock is rw;
 
 submethod BUILD {
+
+    # TODO understand why @!servers is empty here
+    if ! @!servers {
+        @!servers = "127.0.0.1:11211";
+    }
+
     say "Setting servers: ", @!servers;
     self.set_servers(@!servers);
 }
@@ -337,7 +343,7 @@ sub _connect_sock { # sock, sin, timeout
 }
 =end pod
 
-method _connect_sock ($sock, $sin, $timeout = 0.25) {
+sub _connect_sock ($sock, $sin, $timeout = 0.25) {
 
     # make the socket non-blocking from now on,
     # except if someone wants 0 timeout, meaning
@@ -350,10 +356,18 @@ method _connect_sock ($sock, $sin, $timeout = 0.25) {
     my $host = 'localhost';
     my $port = 11211;
 
-    my $sock_obj = IO::Socket::INET.new(:$host, :$port);
+    my $sock_obj = IO::Socket::INET.new;
+    my $ret = $sock_obj.open($host, $port);
 
     # TODO non-blocking sockets support yanked for now
-    return $sock_obj;
+
+    if $ret {
+        say "Connected to localhost:11211 (hardcoded)...\n";
+        return $sock_obj;
+    }
+
+    return;
+
 }
 
 =begin pod
@@ -454,8 +468,7 @@ method sock_to_host ($host) {
         return %cache_sock{$host};
     }
     
-    my $now = time();
-
+    my $now = time;
     my $ip;
     my $port;
 
@@ -463,7 +476,7 @@ method sock_to_host ($host) {
         $ip = $0;
         $port = $1;
         # Get rid of optional IPv6 brackets
-        $ip ~~ s/<\[\]>//g if $ip.defined;
+        $ip ~~ s:g [ \[ | \] ] = '' if $ip.defined;
     }
 
     if %host_dead{$host} && %host_dead{$host} > $now {
@@ -477,7 +490,7 @@ method sock_to_host ($host) {
         # TODO connect fail callback
         #my &cb = &!cb_connect_fail;
         #if &cb { &cb->() }
-        return _dead_sock($sock, Mu, 20 + 10.rand.Int);
+        return self._dead_sock($sock, Mu, 20 + 10.rand.Int);
     }
 
     %sock_map{$sock} = $host;
@@ -660,15 +673,16 @@ sub _write_and_read {
 # writes a line, then reads result.  by default stops reading after a
 # single line, but caller can override the $check_complete subref,
 # which gets passed a scalarref of buffer read thus far.
-method _write_and_read ($sock, $line, $check_complete) {
+method _write_and_read ($sock, $command, $check_complete = Mu) {
 
     my $res;
     my $ret = Mu; 
     my $offset = 0;
-   
-    &check_complete //= sub ($ret) {
-        return $ret.rindex("\r\n") + 2 == $ret.chars;
-    };
+    my $line = $command;
+
+    #$check_complete //= sub ($ret) {
+    #    return ($ret.rindex("\x0D\x0A") + 2) == $ret.chars;
+    #};
 
     # state: 0 - writing, 1 - reading, 2 - done
     my $state = 0;
@@ -682,12 +696,21 @@ method _write_and_read ($sock, $line, $check_complete) {
         }
 
         my $to_send = $line.chars;
-        
+
+        say "Chars to send: $to_send";
+
+=begin oldpart
         while $to_send > 0 {
+        
+            say "Sending [$line] ...";
+
             $res = $sock.send($line);
+            say "Send result: $res";
+
             last unless $res.defined;
+
             if $res == 0 {
-                $._close_sock($sock);
+                self._close_sock($sock);
                 return;
             }
             $to_send -= $res;
@@ -699,20 +722,43 @@ method _write_and_read ($sock, $line, $check_complete) {
                 $line = $line.substr($res); # delete the part we sent
             }
         }
+=end oldpart
 
-        $res = $sock.recv();
-
-        next unless $res.defined;
-        if $res.chars == 0 {
-            $._close_sock($sock);
-            return;
+        if $to_send > 0 {
+            my $sent = $sock.send($line);
+            if $sent == 0 {
+                self._close_sock($sock);
+                return;
+            }
+            $to_send -= $sent;
+            if $to_send == 0 {
+                $state = 1;
+            }
+            else {
+                $line = $line.substr($sent);
+            }
         }
-        $offset += $res;
-        $state = 2 if &check_complete.($ret);
+
+        say "Receiving from socket";
+
+        $ret = $sock.recv();
+        #$ret = "";
+        #while (my $c = $sock.recv(1)) {
+        #    $ret ~= $c;
+        #}
+
+        say "Got from socket (recv=" ~ $ret.perl ~ ")";
+
+        if $ret ~~ m/\r\n$/ {
+            say "Got a terminator (\\r\\n)";
+            $state = 2;
+        }
+
     }
 
+    # Improperly finished
     unless $state == 2 {
-        $._dead_sock($sock); # improperly finished
+        self._dead_sock($sock);
         return;
     }
 
@@ -961,13 +1007,14 @@ method get ($key) {
     my $sock = $.get_sock($key);
     say "get(): socket '$sock'";
 
-    my $full_key = $!namespace ~ $key;
+    my $namespace = $!namespace // "";
+    my $full_key = $namespace ~ $key;
     say "get(): full key '$full_key'";
 
     my $get_cmd = "get $full_key\r\n";
     say "get(): command '$get_cmd'";
 
-    my @res = $.run_command($sock, $get_cmd);
+    my @res = self.run_command($sock, $get_cmd);
 
     %!stats<get>++;
 
@@ -1284,12 +1331,13 @@ method run_command ($sock, $cmd) {
 
     return unless $sock;
 
-    my $ret;
+    my $ret = "";
     my $line = $cmd;
 
     while (my $res = self._write_and_read($sock, $line)) {
-        $line = Mu;
+        $line = "";
         $ret ~= $res;
+        say "Received [$res] total [$ret]";
         last if $ret ~~ /[ OK | END | ERROR ] \r\n $/;
     }
 
