@@ -959,7 +959,7 @@ method decr ($key, $offset) {
     $._incrdecr("incr", $key, $offset);
 }
 
-sub _incrdecr ($cmdname, $key, $value) {
+method _incrdecr ($cmdname, $key, $value) {
     return if ! $!active || $!readonly;
 
     my $stime;
