@@ -1468,9 +1468,6 @@ method stats_reset ($types) {
     return 1;
 }
 
-1;
-
-
 =begin pod
 
 =head1 NAME
