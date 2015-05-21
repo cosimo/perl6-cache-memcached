@@ -154,7 +154,7 @@ sub set_cb_connect_fail {
 =end pod
 
 method set_cb_connect_fail (&callback) {
-    $!cb_connect_fail = &callback;
+    &!cb_connect_fail = &callback;
 }
 
 =begin pod
@@ -238,7 +238,7 @@ sub forget_dead_hosts {
 
 method forget_dead_hosts () {
     %host_dead = ();
-    $!buck2sock = ();
+    @!buck2sock = ();
 }
 
 =begin pod
