@@ -272,7 +272,7 @@ sub _dead_sock {
 
 method _dead_sock ($sock, $ret, $dead_for) {
     if my $ipport = %sock_map{$sock} {
-        my $now = time();
+        my $now = time;
         %host_dead{$ipport} = $now + $dead_for if $dead_for;
         %cache_sock.delete($ipport);
         %sock_map.delete($sock);
@@ -797,7 +797,7 @@ method delete ($key, $time = "") {
     my $stime;
     my $etime;
 
-    $stime = time() if &!stat_callback;
+    $stime = time if &!stat_callback;
 
     my $sock = $.get_sock($key);
     return 0 unless $sock;
@@ -809,7 +809,7 @@ method delete ($key, $time = "") {
     my $res = $._write_and_read($sock, $cmd);
 
     if &!stat_callback {
-        my $etime = time();
+        my $etime = time;
         &!stat_callback.($stime, $etime, $sock, 'delete');        
     }
 
@@ -921,7 +921,7 @@ method _set ($cmdname, $key, $val, $exptime = 0) {
     my $stime;
     my $etime;
 
-    $stime = time() if &!stat_callback;
+    $stime = time if &!stat_callback;
     my $sock = $._get_sock($key);
     return 0 unless $sock;
 
@@ -964,7 +964,7 @@ method _incrdecr ($cmdname, $key, $value) {
 
     my $stime;
 
-    $stime = time() if &!stat_callback;
+    $stime = time if &!stat_callback;
     my $sock = $.get_sock($key);
     return unless $sock;
 
@@ -975,7 +975,7 @@ method _incrdecr ($cmdname, $key, $value) {
     my $res = $._write_and_read($sock, $line);
 
     if &!stat_callback {
-        my $etime = time();
+        my $etime = time;
         &!stat_callback.($stime, $etime, $sock, $cmdname);
     }
 
