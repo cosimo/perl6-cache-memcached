@@ -32,10 +32,10 @@ my $memd = Cache::Memcached.new(
 
 my $misc_stats = $memd.stats('misc');
 ok($misc_stats, 'got misc stats');
-isa_ok($misc_stats, 'HASH', 'misc stats');
-isa_ok($misc_stats{'total'}, 'HASH', 'misc stats total');
-isa_ok($misc_stats{'hosts'}, 'HASH', 'misc stats hosts');
-isa_ok($misc_stats{'hosts'}{$testaddr}, 'HASH',
+isa-ok($misc_stats, 'HASH', 'misc stats');
+isa-ok($misc_stats{'total'}, 'HASH', 'misc stats total');
+isa-ok($misc_stats{'hosts'}, 'HASH', 'misc stats hosts');
+isa-ok($misc_stats{'hosts'}{$testaddr}, 'HASH',
        "misc stats hosts $testaddr");
 
 for @misc_stats_keys -> $stat_key  {
