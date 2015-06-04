@@ -48,8 +48,9 @@ has       &.cb_connect_fail;
 has       @!buck2sock;
 has Version $!server-version;
 
-submethod BUILD(:@!servers, Bool :$!debug = False, :$!namespace) {
+submethod BUILD(:@!servers, Bool :$!debug = False, Str :$namespace) {
 
+    $!namespace = ( $namespace // "" );
     # TODO understand why @!servers is empty here
     if ! @!servers {
         say "setting default servers";
