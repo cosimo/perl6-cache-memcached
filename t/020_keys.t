@@ -3,7 +3,7 @@ use Test;
 use Cache::Memcached;
 #use IO::Socket::INET;
 
-plan 21;
+plan 19;
 
 my $testaddr = "127.0.0.1:11211";
 my $port = 11211;
@@ -52,21 +52,14 @@ SKIP: {
   skip "Could not parse server version; version.pm 0.77 required", 7
       unless $memcached_version;
   skip "Only using prepend/append on memcached >= 1.2.4, you have $memcached_version", 7
-      unless $memcached_version && $memcached_version >= v1.2.4;
+      unless $memcached_version && ($memcached_version cmp v1.2.4) ~~ (Same|More);
 
   ok(! $memd.append("key-noexist", "bogus"), "append key-noexist properly failed");
   ok(! $memd.prepend("key-noexist", "bogus"), "prepend key-noexist properly failed");
   ok($memd.set("key3", "base"), "set key3 to base");
   ok($memd.append("key3", "-end"), "appended -end to key3");
-  ok($memd.get("key3", "base-end"), "key3 is base-end");
+  is($memd.get("key3"), "base-end", "key3 is base-end");
   ok($memd.prepend("key3", "start-"), "prepended start- to key3");
-  ok($memd.get("key3", "start-base-end"), "key3 is base-end");
+  is($memd.get("key3"), "start-base-end", "key3 is base-end");
 }
 
-# also test creating the object with a list rather than a hash-ref
-my $mem2 = Cache::Memcached.new(
-                                 servers   => [ ],
-                                 debug     => 1,
-                                );
-isa-ok($mem2, 'Cache::Memcached');
-ok($mem2<debug>, "debug is set on alt constructed instance");

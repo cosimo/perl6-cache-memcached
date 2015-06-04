@@ -25,7 +25,7 @@ use fields qw{
 };
 =end pod
 
-has Int   $!debug;
+has Bool  $!debug = False;
 has Bool  $!no_rehash;
 has       %!stats;
 has Int   $.compress_threshold is rw;
@@ -33,7 +33,7 @@ has Bool  $.compress_enable is rw;
 has Bool  $.readonly is rw;
 has       &.stat_callback is rw;
 has       $.select_timeout is rw;
-has Str   $!namespace = "";
+has Str   $.namespace = "";
 has Int   $!namespace_len = 0;
 has       @!servers = ();
 has       $!active;
@@ -46,11 +46,13 @@ has Rat   $!connect_timeout;
 has       &.cb_connect_fail;
 #as Str   $.parser_class is rw = 'Cache::Memcached::GetParser';
 has       @!buck2sock;
+has Version $!server-version;
 
-submethod BUILD(:@!servers) {
+submethod BUILD(:@!servers, Bool :$!debug = False, :$!namespace) {
 
     # TODO understand why @!servers is empty here
     if ! @!servers {
+        say "setting default servers";
         @!servers = "127.0.0.1:11211";
     }
 
@@ -356,15 +358,15 @@ sub _connect_sock ($sock, $sin, $timeout = 0.25) {
     #my $ret = connect($sock, $sin);
 
     # TODO FIXME
-    my $host = 'localhost';
-    my $port = 11211;
+    my $host = $sock;
+    my $port = $sin;
 
     my $ret;
 
     try {
         my $sock_obj = IO::Socket::INET.new(host => $host, port => $port);
 
-        if $ret {
+        if $sock {
             say "Connected to localhost:11211 (hardcoded)...\n";
             $ret = $sock_obj;
         }
@@ -472,7 +474,9 @@ sub sock_to_host { # (host)  #why is this public? I wouldn't have to worry about
 # Why is this public? I wouldn't have to worry about undef $self if it weren't.
 method sock_to_host (Str $host) {
 
+    say "sock_to_host";
     if %cache_sock{$host} {
+        say "cache_sock hit";
         return %cache_sock{$host};
     }
     
@@ -482,7 +486,7 @@ method sock_to_host (Str $host) {
 
     if $host ~~ m/ (.*) \: (\d+) / {
         $ip = $0;
-        $port = $1;
+        $port = $1.Int;
         # Get rid of optional IPv6 brackets
         $ip ~~ s:g [ \[ | \] ] = '' if $ip.defined;
     }
@@ -495,6 +499,7 @@ method sock_to_host (Str $host) {
     my $sock = _connect_sock($ip, $port, $timeout);
 
     if ! $sock {
+        say "sock not defined";
         # TODO connect fail callback
         #my &cb = &!cb_connect_fail;
         #if &cb { &cb->() }
@@ -688,7 +693,7 @@ sub _write_and_read {
 # writes a line, then reads result.  by default stops reading after a
 # single line, but caller can override the $check_complete subref,
 # which gets passed a scalarref of buffer read thus far.
-method _write_and_read ($sock, $command, $check_complete = Mu) {
+method _write_and_read (IO::Socket $sock, Str $command, Mu $check_complete?) {
 
     my $res;
     my $ret = Mu; 
@@ -931,7 +936,7 @@ sub _set {
 }
 =end pod
 
-method _set ($cmdname, $key, $val, $exptime = 0) {
+method _set ($cmdname, $key, $val, Int $exptime = 0) {
     return 0 if ! $!active || $!readonly;
     my $stime;
     my $etime;
@@ -947,8 +952,8 @@ method _set ($cmdname, $key, $val, $exptime = 0) {
     my $len = $val.chars;
 
     # TODO COMPRESS THRESHOLD support
-    $exptime //= 0;
-    $exptime = $exptime.Int;
+    #$exptime //= 0;
+    #$exptime = $exptime.Int;
     my $line = "$cmdname " ~ $!namespace ~ "$key $flags $exptime $len\r\n$val\r\n";
     my $res  = $._write_and_read($sock, $line);
 
@@ -1041,7 +1046,7 @@ method get ($key) {
        say "No socket ...";
     }
 
-    return @res;
+    return @res[1];
 }
 
 =begin pod
@@ -1365,7 +1370,8 @@ method run_command ($sock, $cmd) {
     $ret .= chop;
     $ret .= chop;
 
-    $ret.split("\r\n") ==> map { "$_\r\n" } ==> my @lines;
+    #$ret.split("\r\n") ==> map { "$_\r\n" } ==> my @lines;
+    my @lines = $ret.split(/\r\n/);
 
     return @lines;
 }
@@ -1506,14 +1512,17 @@ method stats(*@types) {
                 if $typename ~~ any(<malloc sizes misc>) {
                     # This stat is key-value.
                     for @lines -> $line {
-                        my ($key, $value) = $line ~~ /^[STAT]?(\w+)\s(.*)/;
-                        if ($key) {
-                            %stats_hr<hosts>{$host}{$typename}{$key} = $value;
-                        }
-                        %stats_hr<total>{$key} += $value
-                            if $typename eq 'misc' && $key && %misc_keys{$key};
-                        %stats_hr<total>{"malloc_$key"} += $value
+                        if $line ~~ /^STAT\s+(\w+)\s(.*)/ {
+                            my $key = $0;
+                            my $value = $1;
+                            if ($key) {
+                                %stats_hr<hosts>{$host}{$typename}{$key} = $value;
+                            }
+                            %stats_hr<total>{$key} += $value
+                                if $typename eq 'misc' && $key && %misc_keys{$key};
+                            %stats_hr<total>{"malloc_$key"} += $value
                             if $typename eq 'malloc' && $key;
+                        }
                     }
                 } 
                 else {

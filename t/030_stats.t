@@ -12,7 +12,7 @@ my @misc_stats_keys = qw/ bytes bytes_read bytes_written
 
 plan 16 + @misc_stats_keys.elems;
 
-my $testaddr = "127.0.0.1";
+my $testaddr = "127.0.0.1:11211";
 my $port = 11211;
 
 try {
@@ -32,10 +32,11 @@ my $memd = Cache::Memcached.new(
 
 my $misc_stats = $memd.stats('misc');
 ok($misc_stats, 'got misc stats');
-isa-ok($misc_stats, 'HASH', 'misc stats');
-isa-ok($misc_stats{'total'}, 'HASH', 'misc stats total');
-isa-ok($misc_stats{'hosts'}, 'HASH', 'misc stats hosts');
-isa-ok($misc_stats{'hosts'}{$testaddr}, 'HASH',
+
+isa-ok($misc_stats, Hash, 'misc stats');
+isa-ok($misc_stats{'total'}, Hash, 'misc stats total');
+isa-ok($misc_stats{'hosts'}, Hash, 'misc stats hosts');
+isa-ok($misc_stats{'hosts'}{$testaddr}, Hash,
        "misc stats hosts $testaddr");
 
 for @misc_stats_keys -> $stat_key  {
