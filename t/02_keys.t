@@ -3,9 +3,9 @@ use Test;
 use Cache::Memcached;
 #use IO::Socket::INET;
 
-plan 20;
+plan 21;
 
-my $testaddr = "127.0.0.1";
+my $testaddr = "127.0.0.1:11211";
 my $port = 11211;
 
 try {
@@ -23,8 +23,10 @@ my $memd = Cache::Memcached.new(
     namespace => "Cache::Memcached::t/$*PID/" ~ (now % 100) ~ "/",
 );
 
-isa_ok($memd, 'Cache::Memcached');
+isa-ok($memd, 'Cache::Memcached');
 
+
+ok($memd.stats('misc').keys, "got some stats");
 
 my $memcached_version =
         Version.new(
@@ -66,5 +68,5 @@ my $mem2 = Cache::Memcached.new(
                                  servers   => [ ],
                                  debug     => 1,
                                 );
-isa_ok($mem2, 'Cache::Memcached');
+isa-ok($mem2, 'Cache::Memcached');
 ok($mem2<debug>, "debug is set on alt constructed instance");
