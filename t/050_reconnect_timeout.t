@@ -25,6 +25,7 @@ my $memd = Cache::Memcached.new(
     namespace => "Cache::Memcached::t/$*PID/" ~ (now % 100) ~ "/",
 );
 
+todo("may not be testing this right", 2);
 
 my $time1 = now;
 $memd.set("key", "bar");
