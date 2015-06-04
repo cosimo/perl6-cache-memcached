@@ -271,10 +271,12 @@ sub _dead_sock {
 =end pod
 
 method _dead_sock ($sock, $ret, $dead_for) {
-    if my $ipport = %sock_map{$sock} {
-        %host_dead{$ipport} = now + $dead_for if $dead_for;
-        %cache_sock.delete($ipport);
-        %sock_map.delete($sock);
+    if $sock.defined {
+        if my $ipport = %sock_map{$sock} {
+            %host_dead{$ipport} = now + $dead_for if $dead_for;
+            %cache_sock.delete($ipport);
+            %sock_map.delete($sock);
+        }
     }
     @!buck2sock = ();
     return $ret;
@@ -355,18 +357,23 @@ sub _connect_sock ($sock, $sin, $timeout = 0.25) {
     my $host = 'localhost';
     my $port = 11211;
 
-    my $sock_obj = IO::Socket::INET.new;
-    my $ret = $sock_obj.open($host, $port);
+    my $ret;
 
-    # TODO non-blocking sockets support yanked for now
+    try {
+        my $sock_obj = IO::Socket::INET.new(host => $host, port => $port);
 
-    if $ret {
-        say "Connected to localhost:11211 (hardcoded)...\n";
-        return $sock_obj;
+        if $ret {
+            say "Connected to localhost:11211 (hardcoded)...\n";
+            $ret = $sock_obj;
+        }
+        CATCH {
+           default {
+              say $_.message;
+           }
+        }
     }
 
-    return;
-
+    return $ret;
 }
 
 =begin pod
@@ -489,7 +496,7 @@ method sock_to_host ($host) {
         # TODO connect fail callback
         #my &cb = &!cb_connect_fail;
         #if &cb { &cb->() }
-        return self._dead_sock($sock, Mu, 20 + 10.rand.Int);
+        return self._dead_sock($sock, Nil, 20 + 10.rand.Int);
     }
 
     %sock_map{$sock} = $host;
@@ -921,7 +928,7 @@ method _set ($cmdname, $key, $val, $exptime = 0) {
     my $etime;
 
     $stime = now if &!stat_callback;
-    my $sock = $._get_sock($key);
+    my $sock = $.get_sock($key);
     return 0 unless $sock;
 
     my $app_or_prep = ($cmdname eq 'append' or $cmdname eq 'prepend') ?? 1 !! 0;
@@ -1000,24 +1007,30 @@ sub get {
 
 method get ($key) {
 
+    my @res;
     my $hv = _hashfunc($key);
     say "get(): hash value '$hv'";
 
     my $sock = $.get_sock($key);
-    say "get(): socket '$sock'";
+    if $sock.defined {
+        say "get(): socket '$sock'";
 
-    my $namespace = $!namespace // "";
-    my $full_key = $namespace ~ $key;
-    say "get(): full key '$full_key'";
+        my $namespace = $!namespace // "";
+        my $full_key = $namespace ~ $key;
+        say "get(): full key '$full_key'";
+   
+        my $get_cmd = "get $full_key\r\n";
+        say "get(): command '$get_cmd'";
 
-    my $get_cmd = "get $full_key\r\n";
-    say "get(): command '$get_cmd'";
+        @res = self.run_command($sock, $get_cmd);
 
-    my @res = self.run_command($sock, $get_cmd);
+        %!stats<get>++;
 
-    %!stats<get>++;
-
-    say "memcache: got ", @res.perl;
+        say "memcache: got ", @res.perl;
+    }
+    else {
+       say "No socket ...";
+    }
 
     return @res;
 }
@@ -1761,4 +1774,4 @@ Brad Whitaker <whitaker@danga.com>
 Jamie McCarthy <jamie@mccarthy.vg>
 
 =end pod
-
+# vim: ft=perl6
