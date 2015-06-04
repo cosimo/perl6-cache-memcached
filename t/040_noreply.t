@@ -8,7 +8,7 @@ use Cache::Memcached;
 
 plan 7;
 
-my $testaddr = "127.0.0.1";
+my $testaddr = "127.0.0.1:11211";
 my $port = 11211;
 
 try {
@@ -26,7 +26,7 @@ my $memd = Cache::Memcached.new(
     namespace => "Cache::Memcached::t/$*PID/" ~ (now % 100) ~ "/",
 );
 
-isa_ok($memd, 'Cache::Memcached');
+isa-ok($memd, 'Cache::Memcached');
 
 
 constant count = 30;
@@ -39,15 +39,15 @@ is($memd.get("key"), "add");
 for ^count -> $i {
     $memd.set("key", $i);
 }
-is($memd.get("key"), count - 1);
+is($memd.get("key"), count - 1, "value should be " ~ count - 1);
 
 $memd.replace("key", count);
-is($memd.get("key"), count);
+is($memd.get("key"), count, "value should now be " ~ count);
 
 for ^count -> $i {
     $memd.incr("key", 2);
 }
-is($memd.get("key"), count + 2 * count);
+is($memd.get("key"), count + 2 * count, "value should now be " ~ count + 2 * count);
 
 for ^count -> $i {
     $memd.decr("key", 1);
