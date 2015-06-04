@@ -18,5 +18,5 @@ my $rv = $mc.get("mykey");
 say "Get rv = '$rv'";
 is($rv, "myvalue", "get() should get back the same value");
 
-done_testing;
+done();
 
