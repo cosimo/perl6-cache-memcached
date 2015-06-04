@@ -1,4 +1,6 @@
+
 use v6;
+
 use String::CRC32;
 
 unit class Cache::Memcached:auth<cosimo>:ver<0.04>;
@@ -35,7 +37,7 @@ has Str   $!namespace = "";
 has Int   $!namespace_len = 0;
 has       @!servers = ();
 has       $!active;
-has       @.buckets is rw;
+has Str   @.buckets = (); # is rw;
 has Str   $!pref_ip;
 has Int   $!bucketcount = 0;
 has       $!_single_sock = False;
@@ -45,7 +47,7 @@ has       &.cb_connect_fail;
 #as Str   $.parser_class is rw = 'Cache::Memcached::GetParser';
 has       @!buck2sock;
 
-submethod BUILD {
+submethod BUILD(:@!servers) {
 
     # TODO understand why @!servers is empty here
     if ! @!servers {
@@ -135,13 +137,13 @@ method set_servers (@servers) {
     @!servers = @servers;
     $!active = +@servers;
 
-    @!buckets = Nil;
+    @!buckets = ();
     $!bucketcount = 0;
     $.init_buckets();
     @!buck2sock = ();
     $!_single_sock = Mu;
 
-    if @servers == 1 {
+    if +@servers == 1 {
         $!_single_sock = @servers[0];
     }
 }
@@ -468,7 +470,7 @@ sub sock_to_host { # (host)  #why is this public? I wouldn't have to worry about
 =end pod
 
 # Why is this public? I wouldn't have to worry about undef $self if it weren't.
-method sock_to_host ($host) {
+method sock_to_host (Str $host) {
 
     if %cache_sock{$host} {
         return %cache_sock{$host};
@@ -566,17 +568,24 @@ sub init_buckets {
 =end pod
 
 method init_buckets () {
-    return if @!buckets;
 
-    my @bu = @!buckets //= ();
-    for @!servers -> $v {
-        # TODO support weighted servers
-        # [ ['127.0.0.1:11211', 2],
-        #   ['127.0.0.1:11212', 1], ]
-        @bu.push($v);
+    say "init_buckets with ", @!buckets;
+
+    if not @!buckets.elems {
+        say "setting buckets";
+
+        for @!servers -> $v {
+            say "adding server to buckets $v";
+            # TODO support weighted servers
+            # [ ['127.0.0.1:11211', 2],
+            #   ['127.0.0.1:11212', 1], ]
+            @!buckets.push($v);
+        }
+
     }
-
-    @!buckets = @bu;
+    else {
+        say "already got buckets : ", @!buckets;
+    }
     $!bucketcount = +@!buckets;
 
     return $!bucketcount;
@@ -694,7 +703,7 @@ method _write_and_read ($sock, $command, $check_complete = Mu) {
     my $state = 0;
     my $copy_state = -1;
   
-    while True {
+    loop {
 
         if $copy_state != $state {
             last if $state == 2;
@@ -1447,6 +1456,80 @@ sub stats {
 }
 =end pod
 
+method stats(*@types) {
+
+    my %stats_hr = ();
+
+    if $!active {
+        if not @types.elems {
+            @types = <misc malloc self>;
+        }
+
+        # The "self" stat type is special, it only applies to this very
+        # object.
+        if @types ~~ /^self$/ {
+            %stats_hr<self> = %!stats.clone;
+        }
+
+        my %misc_keys = <bytes bytes_read bytes_written
+            cmd_get cmd_set connection_structures curr_items
+            get_hits get_misses
+            total_connections total_items>.map({ $_ => 1 });
+
+        # Now handle the other types, passing each type to each host server.
+        my @hosts = @!buckets;
+
+        HOST: 
+        for @hosts -> $host {
+            my $sock = $.sock_to_host($host);
+            next HOST unless $sock;
+            TYPE: 
+            for @types.grep({ $_ !~~ /^self$/ }) -> $typename {
+                my $type = $typename eq 'misc' ?? "" !! " $typename";
+                my $lines = $._write_and_read($sock, "stats$type\r\n", -> $bref {
+                    return $bref ~~ /:m^[END|ERROR]\r?\n/;
+                });
+                unless ($lines) {
+                    $._dead_sock($sock);
+                    next HOST;
+                }
+
+                $lines ~~ s:g/\0//;  # 'stats sizes' starts with NULL?
+
+                # And, most lines end in \r\n but 'stats maps' (as of
+                # July 2003 at least) ends in \n. ??
+                my @lines = $lines.split(/\r?\n/);
+
+                # Some stats are key-value, some are not.  malloc,
+                # sizes, and the empty string are key-value.
+                # ("self" was handled separately above.)
+                if $typename ~~ any(<malloc sizes misc>) {
+                    # This stat is key-value.
+                    for @lines -> $line {
+                        my ($key, $value) = $line ~~ /^[STAT]?(\w+)\s(.*)/;
+                        if ($key) {
+                            %stats_hr<hosts>{$host}{$typename}{$key} = $value;
+                        }
+                        %stats_hr<total>{$key} += $value
+                            if $typename eq 'misc' && $key && %misc_keys{$key};
+                        %stats_hr<total>{"malloc_$key"} += $value
+                            if $typename eq 'malloc' && $key;
+                    }
+                } 
+                else {
+                    # This stat is not key-value so just pull it
+                    # all out in one blob.
+                    $lines ~~ s:m/^END\r?\n//;
+                    %stats_hr<hosts>{$host}{$typename} ||= "";
+                    %stats_hr<hosts>{$host}{$typename} ~= "$lines";
+                }
+            }
+        }
+    }
+
+    return %stats_hr;
+}
+
 =begin pod
 sub stats_reset {
     my Cache::Memcached $self = shift;
@@ -1774,4 +1857,5 @@ Brad Whitaker <whitaker@danga.com>
 Jamie McCarthy <jamie@mccarthy.vg>
 
 =end pod
-# vim: ft=perl6
+
+# vim: ft=perl6 sw=4 ts=4 st=4 sts=4 et
