@@ -20,7 +20,7 @@ try {
 }
 
 my $memd = Cache::Memcached.new(
-    servers   => [ $testaddr ],
+    servers   => [ "$testaddr:$port" ],
 );
 
 my $key = "Ïâ";
