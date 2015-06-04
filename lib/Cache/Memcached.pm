@@ -40,7 +40,7 @@ has Str   $!pref_ip;
 has Int   $!bucketcount = 0;
 has       $!_single_sock = False;
 has       $!_stime;
-has Int   $!connect_timeout;
+has Rat   $!connect_timeout;
 has       &.cb_connect_fail;
 #as Str   $.parser_class is rw = 'Cache::Memcached::GetParser';
 has       @!buck2sock;
@@ -154,7 +154,7 @@ sub set_cb_connect_fail {
 =end pod
 
 method set_cb_connect_fail (&callback) {
-    $!cb_connect_fail = &callback;
+    &!cb_connect_fail = &callback;
 }
 
 =begin pod
@@ -238,7 +238,7 @@ sub forget_dead_hosts {
 
 method forget_dead_hosts () {
     %host_dead = ();
-    $!buck2sock = ();
+    @!buck2sock = ();
 }
 
 =begin pod
@@ -272,8 +272,7 @@ sub _dead_sock {
 
 method _dead_sock ($sock, $ret, $dead_for) {
     if my $ipport = %sock_map{$sock} {
-        my $now = time();
-        %host_dead{$ipport} = $now + $dead_for if $dead_for;
+        %host_dead{$ipport} = now + $dead_for if $dead_for;
         %cache_sock.delete($ipport);
         %sock_map.delete($sock);
     }
@@ -797,7 +796,7 @@ method delete ($key, $time = "") {
     my $stime;
     my $etime;
 
-    $stime = time() if &!stat_callback;
+    $stime = now if &!stat_callback;
 
     my $sock = $.get_sock($key);
     return 0 unless $sock;
@@ -809,7 +808,7 @@ method delete ($key, $time = "") {
     my $res = $._write_and_read($sock, $cmd);
 
     if &!stat_callback {
-        my $etime = time();
+        my $etime = now;
         &!stat_callback.($stime, $etime, $sock, 'delete');        
     }
 
@@ -921,7 +920,7 @@ method _set ($cmdname, $key, $val, $exptime = 0) {
     my $stime;
     my $etime;
 
-    $stime = time() if &!stat_callback;
+    $stime = now if &!stat_callback;
     my $sock = $._get_sock($key);
     return 0 unless $sock;
 
@@ -959,12 +958,12 @@ method decr ($key, $offset) {
     $._incrdecr("incr", $key, $offset);
 }
 
-sub _incrdecr ($cmdname, $key, $value) {
+method _incrdecr ($cmdname, $key, $value) {
     return if ! $!active || $!readonly;
 
     my $stime;
 
-    $stime = time() if &!stat_callback;
+    $stime = now if &!stat_callback;
     my $sock = $.get_sock($key);
     return unless $sock;
 
@@ -975,7 +974,7 @@ sub _incrdecr ($cmdname, $key, $value) {
     my $res = $._write_and_read($sock, $line);
 
     if &!stat_callback {
-        my $etime = time();
+        my $etime = now;
         &!stat_callback.($stime, $etime, $sock, $cmdname);
     }
 
@@ -1468,7 +1467,6 @@ method stats_reset ($types) {
     return 1;
 }
 
-1;
 
 
 =begin pod
