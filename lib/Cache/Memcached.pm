@@ -53,11 +53,11 @@ submethod BUILD(:@!servers, Bool :$!debug = False, Str :$namespace) {
     $!namespace = ( $namespace // "" );
     # TODO understand why @!servers is empty here
     if ! @!servers {
-        say "setting default servers";
+        self.log_debug("setting default servers");
         @!servers = "127.0.0.1:11211";
     }
 
-    say "Setting servers: ", @!servers;
+    self.log_debug("Setting servers: ", @!servers);
     self.set_servers(@!servers);
 }
 
@@ -368,7 +368,6 @@ sub _connect_sock ($sock, $sin, $timeout = 0.25) {
         my $sock_obj = IO::Socket::INET.new(host => $host, port => $port);
 
         if $sock {
-            say "Connected to localhost:11211 (hardcoded)...\n";
             $ret = $sock_obj;
         }
         CATCH {
@@ -475,9 +474,9 @@ sub sock_to_host { # (host)  #why is this public? I wouldn't have to worry about
 # Why is this public? I wouldn't have to worry about undef $self if it weren't.
 method sock_to_host (Str $host) {
 
-    say "sock_to_host";
+    $.log_debug("sock_to_host");
     if %cache_sock{$host} {
-        say "cache_sock hit";
+        $.log_debug("cache_sock hit");
         return %cache_sock{$host};
     }
     
@@ -500,7 +499,7 @@ method sock_to_host (Str $host) {
     my $sock = _connect_sock($ip, $port, $timeout);
 
     if ! $sock {
-        say "sock not defined";
+        $.log_debug("sock not defined");
         # TODO connect fail callback
         #my &cb = &!cb_connect_fail;
         #if &cb { &cb->() }
@@ -575,13 +574,13 @@ sub init_buckets {
 
 method init_buckets () {
 
-    say "init_buckets with ", @!buckets;
+    $.log_debug("init_buckets with ", @!buckets);
 
     if not @!buckets.elems {
-        say "setting buckets";
+        $.log_debug("setting buckets");
 
         for @!servers -> $v {
-            say "adding server to buckets $v";
+            $.log_debug("adding server to buckets $v");
             # TODO support weighted servers
             # [ ['127.0.0.1:11211', 2],
             #   ['127.0.0.1:11212', 1], ]
@@ -718,15 +717,15 @@ method _write_and_read (IO::Socket $sock, Str $command, Mu $check_complete?) {
 
         my $to_send = $line.chars;
 
-        say "Chars to send: $to_send";
+        $.log_debug("Chars to send: $to_send");
 
 =begin oldpart
         while $to_send > 0 {
         
-            say "Sending [$line] ...";
+            $.log_debug("Sending [$line] ...");
 
             $res = $sock.send($line);
-            say "Send result: $res";
+            $.log_debug("Send result: $res");
 
             last unless $res.defined;
 
@@ -760,7 +759,7 @@ method _write_and_read (IO::Socket $sock, Str $command, Mu $check_complete?) {
             }
         }
 
-        say "Receiving from socket";
+        $.log_debug("Receiving from socket");
 
         $ret = $sock.recv();
         #$ret = "";
@@ -768,10 +767,10 @@ method _write_and_read (IO::Socket $sock, Str $command, Mu $check_complete?) {
         #    $ret ~= $c;
         #}
 
-        say "Got from socket (recv=" ~ $ret.perl ~ ")";
+        $.log_debug("Got from socket (recv=" ~ $ret.perl ~ ")");
 
         if $ret ~~ m/\r\n$/ {
-            say "Got a terminator (\\r\\n)";
+            $.log_debug("Got a terminator (\\r\\n)");
             $state = 2;
         }
 
@@ -1024,18 +1023,18 @@ method get ($key) {
 
     my @res;
     my $hv = _hashfunc($key);
-    say "get(): hash value '$hv'";
+    $.log_debug("get(): hash value '$hv'");
 
     my $sock = $.get_sock($key);
     if $sock.defined {
-        say "get(): socket '$sock'";
+        $.log_debug("get(): socket '$sock'");
 
         my $namespace = $!namespace // "";
         my $full_key = $namespace ~ $key;
-        say "get(): full key '$full_key'";
+        $.log_debug("get(): full key '$full_key'");
    
         my $get_cmd = "get $full_key\r\n";
-        say "get(): command '$get_cmd'";
+        $.log_debug("get(): command '$get_cmd'");
 
         @res = self.run_command($sock, $get_cmd);
 
@@ -1044,7 +1043,7 @@ method get ($key) {
         say "memcache: got ", @res.perl;
     }
     else {
-       say "No socket ...";
+       $.log_debug("No socket ...");
     }
 
     return @res[1].defined ?? @res[1] !! Nil;
@@ -1364,7 +1363,7 @@ method run_command ($sock, $cmd) {
     while (my $res = self._write_and_read($sock, $line)) {
         $line = "";
         $ret ~= $res;
-        say "Received [$res] total [$ret]";
+        $.log_debug("Received [$res] total [$ret]");
         last if $ret ~~ /[ OK | END | ERROR ] \r\n $/;
     }
 
@@ -1571,6 +1570,12 @@ method stats_reset ($types) {
     }
 
     return 1;
+}
+
+method log_debug(*@message ) {
+    if $!debug {
+        say @message;
+    }
 }
 
 
