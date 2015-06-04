@@ -976,7 +976,7 @@ method incr ($key, $offset) {
 }
 
 method decr ($key, $offset) {
-    $._incrdecr("incr", $key, $offset);
+    $._incrdecr("decr", $key, $offset);
 }
 
 method _incrdecr ($cmdname, $key, $value) {
@@ -1046,7 +1046,7 @@ method get ($key) {
        say "No socket ...";
     }
 
-    return @res[1];
+    return @res[1].defined ?? @res[1] !! Nil;
 }
 
 =begin pod
