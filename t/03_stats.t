@@ -5,21 +5,24 @@ use Test;
 use Cache::Memcached;
 #use IO::Socket::INET;
 
-my $testaddr = "127.0.0.1";
-my $port = 11211;
-my $msock = IO::Socket::INET.new(host => $testaddr, port => $port);
-
 my @misc_stats_keys = qw/ bytes bytes_read bytes_written
                           cmd_get cmd_set connection_structures curr_items
                           get_hits get_misses
-                          total_connections total_items
-                         /;
+                          total_connections total_items/;
 
-if ($msock) {
-    plan tests => 16 + @misc_stats_keys.elems;
-} else {
-    plan skip_all => "No memcached instance running at $testaddr\n";
-    exit 0;
+plan 16 + @misc_stats_keys.elems;
+
+my $testaddr = "127.0.0.1";
+my $port = 11211;
+
+try {
+   my $msock = IO::Socket::INET.new(host => $testaddr, port => $port);
+   CATCH {
+      default {
+         skip-rest "No memcached instance running at $testaddr";
+         exit 0;
+      }
+   }
 }
 
 my $memd = Cache::Memcached.new(

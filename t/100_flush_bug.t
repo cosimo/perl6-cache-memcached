@@ -1,15 +1,13 @@
-#!/usr/bin/env perl -w
+#!/usr/bin/env perl6
 
 use v6;
 
-use strict;
 use Test;
 use Cache::Memcached;
 
 
 my $port = 11311;
 my $testaddr = "127.0.0.1:$port";
-my $sock = IO::Socket::INET.new(host => $testaddr, port => $port);
 
 my @res = (
     ["OK\r\n", 1],
@@ -21,13 +19,18 @@ my @res = (
     ["END\r\n", 0],
 );
 
-if ($sock) {
-    plan tests => +@res;
-} else {
-    plan skip_all => "cannot bind to $testaddr\n";
-    exit 0;
+plan +@res;
+
+try {
+   my $sock = IO::Socket::INET.new(host => $testaddr, port => $port);
+   CATCH {
+      default {
+         skip-rest "cannot bind to $testaddr";
+         exit 0;
+      }
+   }
+   close $sock;
 }
-close $sock;
 
 my $p = start {
     

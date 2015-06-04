@@ -1,18 +1,24 @@
-#!/usr/bin/env perl -w
+#!/usr/bin/env perl6
+#
 
-use strict;
+use v6;
+
 use Test;
 use Cache::Memcached;
-#use IO::Socket::INET;
+
+plan 7;
 
 my $testaddr = "127.0.0.1";
 my $port = 11211;
-my $msock = IO::Socket::INET.new(host => $testaddr, port => $port);
-if ($msock) {
-    plan tests => 7;
-} else {
-    plan skip_all => "No memcached instance running at $testaddr\n";
-    exit 0;
+
+try {
+   my $msock = IO::Socket::INET.new(host => $testaddr, port => $port);
+   CATCH {
+      default {
+         skip-rest "No memcached instance running at $testaddr";
+         exit 0;
+      }
+   }
 }
 
 my $memd = Cache::Memcached.new(

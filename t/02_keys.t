@@ -3,14 +3,19 @@ use Test;
 use Cache::Memcached;
 #use IO::Socket::INET;
 
+plan 20;
+
 my $testaddr = "127.0.0.1";
 my $port = 11211;
-my $msock = IO::Socket::INET.new(host => $testaddr, port => $port);
-if ($msock) {
-    plan tests => 20;
-} else {
-    plan skip_all => "No memcached instance running at $testaddr\n";
-    exit 0;
+
+try {
+   my $msock = IO::Socket::INET.new(host => $testaddr, port => $port);
+   CATCH {
+      default {
+         skip-rest "No memcached instance running at $testaddr";
+         exit;
+      }
+   }
 }
 
 my $memd = Cache::Memcached.new(

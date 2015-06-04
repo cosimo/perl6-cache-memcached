@@ -1,12 +1,24 @@
-#!/usr/bin/env perl -w
+#!/usr/bin/env perl6
 
-use strict;
+use v6;
 use Test;
 use Cache::Memcached;
 
-my $testaddr = "192.0.2.1:11211";
+my $testaddr = "127.0.0.1:11211";
+my $testport = 11211;
 
 plan 2;
+
+try {
+   my $sock = IO::Socket::INET.new(host => $testaddr, port => $testport);
+   CATCH {
+      default {
+         skip-rest "No memcached instance running on $testaddr";
+         exit 0;
+      }
+   }
+   $sock.close;
+}
 
 my $memd = Cache::Memcached.new(
     servers   => [ $testaddr ],
