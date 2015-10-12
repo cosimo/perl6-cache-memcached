@@ -181,7 +181,7 @@ sub set_debug {
 }
 =end pod
 
-method set_debug (Bool $debug = 0) {
+method set_debug (Bool $debug = False) {
     $!debug = $debug;
 }
 
@@ -193,7 +193,7 @@ sub set_readonly {
 }
 =end pod
 
-method set_readonly (Bool $ro = 0) {
+method set_readonly (Bool $ro = False) {
     $!readonly = $ro;
 }
 
@@ -205,7 +205,7 @@ sub set_norehash {
 }
 =end pod
 
-method set_norehash (Bool $no_rehash = 0) {
+method set_norehash (Bool $no_rehash = False) {
     $!no_rehash = $no_rehash;
 }
 
@@ -229,7 +229,7 @@ sub enable_compress {
 }
 =end pod
 
-method enable_compress (Bool $comp = 1) {
+method enable_compress (Bool $comp = True) {
     $!compress_enable = $comp;
 }
 
