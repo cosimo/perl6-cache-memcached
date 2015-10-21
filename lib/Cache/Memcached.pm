@@ -485,7 +485,7 @@ method sock_to_host (Str $host) {
     my $port;
 
     if $host ~~ m/ (.*) \: (\d+) / {
-        $ip = $0;
+        $ip = $0.Str;
         $port = $1.Int;
         # Get rid of optional IPv6 brackets
         $ip ~~ s:g [ \[ | \] ] = '' if $ip.defined;
@@ -745,7 +745,7 @@ method _write_and_read (IO::Socket $sock, Str $command, Mu $check_complete?) {
 =end oldpart
 
         if $to_send > 0 {
-            my $sent = $sock.send($line);
+            my $sent = $sock.print($line);
             if $sent == 0 {
                 self._close_sock($sock);
                 return;

@@ -38,4 +38,4 @@ $memd.set("key", "foo");
 my $time3 = now;
 ok($time3 - $time2 < .1, "Should return fast on retry");
 
-done();
+done-testing();

@@ -57,4 +57,4 @@ is($memd.get("key"), count + 1 * count);
 $memd.delete("key");
 is($memd.get("key"), Nil);
 
-done();
+done-testing();

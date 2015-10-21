@@ -46,4 +46,4 @@ for @misc_stats_keys -> $stat_key  {
        "misc stats hosts $testaddr misc contains $stat_key");
 }
 
-done();
+done-testing();
