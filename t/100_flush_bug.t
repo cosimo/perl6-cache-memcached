@@ -54,4 +54,4 @@ for @res <-> $v {
     is $memd.flush_all, $v[1], $v[0];
 }
 
-done();
+done-testing();

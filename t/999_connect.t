@@ -29,4 +29,4 @@ ok(my $rv = $mc.set("mykey", "myvalue"), "set value");
 $rv = $mc.get("mykey");
 is($rv, "myvalue", "get() should get back the same value");
 
-done();
+done-testing();

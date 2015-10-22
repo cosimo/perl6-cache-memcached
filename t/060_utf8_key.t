@@ -28,4 +28,4 @@ my $key = "Ïâ";
 ok($memd.set($key, "val1"), "set key1 as val1");
 is($memd.get($key), "val1", "get key1 is val1");
 
-done();
+done-testing();

@@ -46,7 +46,7 @@ like($lines, /VERSION/, "got version back");
 lives-ok { $lines = $memd._write_and_read($sock, "stats\r\n") }, "_write_and_read";
 
 
-done();
+done-testing();
 
 
 # vim: ft=perl6
