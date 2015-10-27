@@ -2,6 +2,8 @@ branches:
   except:
     - gh-pages
 language: perl6
+services:
+  - memcached
 sudo: false
 perl6:
   - latest
