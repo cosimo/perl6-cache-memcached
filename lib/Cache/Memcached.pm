@@ -74,7 +74,7 @@ method set_servers (@servers) {
 
     @!buckets = ();
     $!bucketcount = 0;
-    $.init_buckets();
+    $.init-buckets();
     @!buck2sock = ();
     $!_single_sock = Mu;
 
@@ -233,7 +233,7 @@ method get-sock ($key) {
     return unless $!active;
 
     # TODO $key array
-    my $hv = _hashfunc($key);
+    my $hv = hashfunc($key);
     my $tries = 0;
 
     while $tries++ < 20 {
@@ -241,16 +241,16 @@ method get-sock ($key) {
         my $sock = $.sock-to-host($host);
         return $sock if $sock;
         return if $!no_rehash;
-        $hv += _hashfunc($tries ~ $key); # stupid, but works
+        $hv += hashfunc($tries ~ $key); # stupid, but works
     }
 
     return;
 }
 
 
-method init_buckets () {
+method init-buckets () {
 
-    $.log-debug("init_buckets with ", @!buckets);
+    $.log-debug("init-buckets with ", @!buckets);
 
     if not @!buckets.elems {
         $.log-debug("setting buckets");
@@ -273,7 +273,7 @@ method init_buckets () {
 }
 
 
-method disconnect_all () {
+method disconnect-all () {
     for %cache_sock.values -> $sock {
         $sock.close() if $sock;
     }
@@ -471,7 +471,7 @@ method !incrdecr ($cmdname, $key, $value) {
 method get ($key) {
 
     my @res;
-    my $hv = _hashfunc($key);
+    my $hv = hashfunc($key);
     $.log-debug("get(): hash value '$hv'");
 
     my $sock = $.get-sock($key);
@@ -485,7 +485,7 @@ method get ($key) {
         my $get_cmd = "get $full_key\r\n";
         $.log-debug("get(): command '$get_cmd'");
 
-        @res = self.run_command($sock, $get_cmd);
+        @res = self.run-command($sock, $get_cmd);
 
         %!stats<get>++;
 
@@ -498,7 +498,7 @@ method get ($key) {
     return @res[1].defined ?? @res[1] !! Nil;
 }
 
-sub _hashfunc(Str $key) {
+sub hashfunc(Str $key) {
     my $crc = String::CRC32::crc32($key);
     $crc +>= 16;
     $crc +&= 0x7FFF;
@@ -506,13 +506,13 @@ sub _hashfunc(Str $key) {
 }
 
 
-method flush_all () {
+method flush-all () {
     my $success = 1;
     my @hosts = @!buckets;
 
     for @hosts -> $host {
         my $sock = $.sock-to-host($host);
-        my @res = $.run_command($sock, "flush_all\r\n");
+        my @res = $.run-command($sock, "flush-all\r\n");
         $success = 0 unless @res == 1 && @res[0] eq "OK\r\n";
     }
 
@@ -522,7 +522,7 @@ method flush_all () {
 
 
 # Returns array of lines, or () on failure.
-method run_command ($sock, $cmd) {
+method run-command ($sock, $cmd) {
 
     return unless $sock;
 
@@ -622,7 +622,7 @@ method stats(*@types) {
     return %stats_hr;
 }
 
-method stats_reset ($types) returns Bool {
+method stats-reset ($types) returns Bool {
 
     my Bool $rc = False;
 
@@ -865,20 +865,20 @@ The stats returned by a 'stats slabs'.
 
 The stats returned by a 'stats items'.
 
-=head2 method disconnect_all
+=head2 method disconnect-all
 
-    $memd.disconnect_all;
+    $memd.disconnect-all;
 
 Closes all cached sockets to all memcached servers.  You must do this
 if your program forks and the parent has used this module at all.
 Otherwise the children will try to use cached sockets and they'll fight
 (as children do) and garble the client/server protocol.
 
-=head2 method flush_all
+=head2 method flush-all
 
-    $memd.flush_all;
+    $memd.flush-all;
 
-Runs the memcached "flush_all" command on all configured hosts,
+Runs the memcached "flush-all" command on all configured hosts,
 emptying all their caches.  (or rather, invalidating all items
 in the caches in an O(1) operation...)  Running stats will still
 show the item existing, they're just be non-existent and lazily
