@@ -680,7 +680,7 @@ More information is available at:
 =head1 METHODS
 
 
-=head2 C<new>
+=head2 method new
 
 Takes one parameter, a hashref of options.  The most important key is
 C<servers>, but that can also be set later with the C<set_servers>
@@ -710,38 +710,38 @@ to "bar", memcached is actually seeing you set "app1:foo" to "bar".
 The other useful key is C<debug>, which when set to true will produce
 diagnostics on STDERR.
 
-=head2 C<set_servers>
+=head2 method set_servers
 
 Sets the server list this module distributes key gets and sets between.
 The format is an arrayref of identical form as described in the C<new>
 constructor.
 
-=head2 C<set_debug>
+=head2 method set_debug
 
 Sets the C<debug> flag.  See C<new> constructor for more information.
 
-=head2 C<set_readonly>
+=head2 method set_readonly
 
 Sets the C<readonly> flag.  See C<new> constructor for more information.
 
-=head2 C<set_norehash>
+=head2 method set_norehash
 
 Sets the C<no_rehash> flag.  See C<new> constructor for more information.
 
-=head2 C<set_compress_threshold>
+=head2 method set_compress_threshold
 
 Sets the compression threshold. See C<new> constructor for more information.
 
 Currently not yet implemented.
 
-=head2 C<enable_compress>
+=head2 method enable_compress
 
 Temporarily enable or disable compression.  Has no effect if
 C<compress_threshold> isn't set, but has an overriding effect if it is.
 
 Compression isn't currently implemented.
 
-=head2 C<get>
+=head2 method get
 
     my $val $memd.get($key);
 
@@ -754,7 +754,7 @@ value.  You may prefer, for example, to keep all of a given user's
 objects on the same memcache server, so you could use the user's
 unique id as the hash value.
 
-=head2 C<get_multi>
+=head2 method get_multi
 
     my $hashref = $memd.get_multi(@keys);
 
@@ -766,7 +766,7 @@ of total packets flying around your network, reducing total latency,
 since your app doesn't have to wait for each round-trip of 'get'
 before sending the next one.
 
-=head2 C<set>
+=head2 method set
 
     $memd.set($key, $value[, $exptime]);
 
@@ -781,20 +781,20 @@ you want the key to expire in memcached, pass an integer $exptime.  If
 value is less than 60*60*24*30 (30 days), time is assumed to be relative
 from the present.  If larger, it's considered an absolute Unix time.
 
-=head2 C<add>
+=head2 method add
 
     $memd.add($key, $value[, $exptime]);
 
 Like C<set>, but only stores in memcache if the key doesn't already exist.
 
-=head2 C<replace>
+=head2 method replace
 
     $memd.replace($key, $value[, $exptime]);
 
 Like C<set>, but only stores in memcache if the key already exists.  The
 opposite of C<add>.
 
-=head2 C<delete>
+=head2 method delete
 
     $memd.delete($key[, $time]);
 
@@ -803,7 +803,7 @@ seconds) to tell the memcached server to block new writes to this key for
 that many seconds.  (Sometimes useful as a hacky means to prevent races.)
 Returns true if key was found and deleted, and false otherwise.
 
-=head2 C<incr>
+=head2 method incr
 
     $memd.incr($key[, $value]);
 
@@ -813,7 +813,7 @@ doesn't exist on server, otherwise it returns the new value after
 incrementing.  Value should be zero or greater.  Overflow on server
 is not checked.  Be aware of values approaching 2**32.  See decr.
 
-=head2 C<decr>
+=head2 method decr
 
     $memd.decr($key[, $value]);
 
@@ -821,7 +821,7 @@ Like incr, but decrements.  Unlike incr, underflow is checked and new
 values are capped at 0.  If server value is 1, a decrement of 2
 returns 0, not -1.
 
-=head2 C<stats>
+=head2 method stats
 
     $memd.stats(@keys);
 
@@ -865,7 +865,7 @@ The stats returned by a 'stats slabs'.
 
 The stats returned by a 'stats items'.
 
-=head2 C<disconnect_all>
+=head2 method disconnect_all
 
     $memd.disconnect_all;
 
@@ -874,7 +874,7 @@ if your program forks and the parent has used this module at all.
 Otherwise the children will try to use cached sockets and they'll fight
 (as children do) and garble the client/server protocol.
 
-=head2 C<flush_all>
+=head2 method flush_all
 
     $memd.flush_all;
 
