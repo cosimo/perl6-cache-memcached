@@ -162,8 +162,6 @@ sub _connect_sock ($sock, $sin, $timeout = 0.25) {
     # a blocking connect, but even then turn it
     # non-blocking at the end of this function
     
-    #my $ret = connect($sock, $sin);
-
     # TODO FIXME
     my $host = $sock;
     my $port = $sin;
@@ -216,9 +214,6 @@ method sock_to_host (Str $host) {
 
     if ! $sock {
         $.log-debug("sock not defined");
-        # TODO connect fail callback
-        #my &cb = &!cb_connect_fail;
-        #if &cb { &cb->() }
         return self._dead_sock($sock, Nil, 20 + 10.rand.Int);
     }
 
@@ -627,19 +622,22 @@ method stats(*@types) {
     return %stats_hr;
 }
 
-method stats_reset ($types) {
-    return 0 unless $!active;
+method stats_reset ($types) returns Bool {
 
-    for @!buckets -> $host {
-        my $sock = self.sock_to_host($host);
-        next unless $sock;
-        my $ok = self._write_and_read($sock, "stats reset");
-        unless (defined $ok && $ok eq "RESET\r\n") {
-            self._dead_sock($sock);
+    my Bool $rc = False;
+
+    if $!active {
+        for @!buckets -> $host {
+            my $sock = self.sock_to_host($host);
+            next unless $sock;
+            my $ok = self._write_and_read($sock, "stats reset");
+            unless (defined $ok && $ok eq "RESET\r\n") {
+                self._dead_sock($sock);
+            }
         }
+        $rc = True;
     }
-
-    return 1;
+    return $rc;
 }
 
 method log-debug(*@message ) {
@@ -658,41 +656,31 @@ Cache::Memcached - client library for memcached (memory cache daemon)
 
 =head1 SYNOPSIS
 
+=begin code 
+
   use Cache::Memcached;
 
-  $memd = new Cache::Memcached {
-    'servers' => [ "10.0.0.15:11211", "10.0.0.15:11212", "/var/sock/memcached",
-                   "10.0.0.17:11211", [ "10.0.0.17:11211", 3 ] ],
-    'debug' => 0,
-    'compress_threshold' => 10_000,
-  };
-  $memd->set_servers($array_ref);
-  $memd->set_compress_threshold(10_000);
-  $memd->enable_compress(0);
+  my $memd = Cache::Memcached.new;
 
   $memd->set("my_key", "Some value");
-  $memd->set("object_key", { 'complex' => [ "object", 2, 4 ]});
-
-  $val = $memd->get("my_key");
-  $val = $memd->get("object_key");
-  if ($val) { print $val->{'complex'}->[2]; }
 
   $memd->incr("key");
   $memd->decr("key");
   $memd->incr("key", 2);
 
+=end code
+
 =head1 DESCRIPTION
 
-This is the Perl API for memcached, a distributed memory cache daemon.
+This is the Perl 6 API for memcached, a distributed memory cache daemon.
 More information is available at:
 
   http://www.danga.com/memcached/
 
-=head1 CONSTRUCTOR
+=head1 METHODS
 
-=over 4
 
-=item C<new>
+=head2 C<new>
 
 Takes one parameter, a hashref of options.  The most important key is
 C<servers>, but that can also be set later with the C<set_servers>
@@ -722,42 +710,40 @@ to "bar", memcached is actually seeing you set "app1:foo" to "bar".
 The other useful key is C<debug>, which when set to true will produce
 diagnostics on STDERR.
 
-=back
-
-=head1 METHODS
-
-=over 4
-
-=item C<set_servers>
+=head2 C<set_servers>
 
 Sets the server list this module distributes key gets and sets between.
 The format is an arrayref of identical form as described in the C<new>
 constructor.
 
-=item C<set_debug>
+=head2 C<set_debug>
 
 Sets the C<debug> flag.  See C<new> constructor for more information.
 
-=item C<set_readonly>
+=head2 C<set_readonly>
 
 Sets the C<readonly> flag.  See C<new> constructor for more information.
 
-=item C<set_norehash>
+=head2 C<set_norehash>
 
 Sets the C<no_rehash> flag.  See C<new> constructor for more information.
 
-=item C<set_compress_threshold>
+=head2 C<set_compress_threshold>
 
 Sets the compression threshold. See C<new> constructor for more information.
 
-=item C<enable_compress>
+Currently not yet implemented.
 
-Temporarily enable or disable compression.  Has no effect if C<compress_threshold>
-isn't set, but has an overriding effect if it is.
+=head2 C<enable_compress>
 
-=item C<get>
+Temporarily enable or disable compression.  Has no effect if
+C<compress_threshold> isn't set, but has an overriding effect if it is.
 
-my $val = $memd->get($key);
+Compression isn't currently implemented.
+
+=head2 C<get>
+
+    my $val $memd.get($key);
 
 Retrieves a key from the memcache.  Returns the value (automatically
 thawed with Storable, if necessary) or undef.
@@ -768,9 +754,9 @@ value.  You may prefer, for example, to keep all of a given user's
 objects on the same memcache server, so you could use the user's
 unique id as the hash value.
 
-=item C<get_multi>
+=head2 C<get_multi>
 
-my $hashref = $memd->get_multi(@keys);
+    my $hashref = $memd.get_multi(@keys);
 
 Retrieves multiple keys from the memcache doing just one query.
 Returns a hashref of key/value pairs that were available.
@@ -780,9 +766,9 @@ of total packets flying around your network, reducing total latency,
 since your app doesn't have to wait for each round-trip of 'get'
 before sending the next one.
 
-=item C<set>
+=head2 C<set>
 
-$memd->set($key, $value[, $exptime]);
+    $memd.set($key, $value[, $exptime]);
 
 Unconditionally sets a key to a given value in the memcache.  Returns true
 if it was stored successfully.
@@ -795,34 +781,31 @@ you want the key to expire in memcached, pass an integer $exptime.  If
 value is less than 60*60*24*30 (30 days), time is assumed to be relative
 from the present.  If larger, it's considered an absolute Unix time.
 
-=item C<add>
+=head2 C<add>
 
-$memd->add($key, $value[, $exptime]);
+    $memd.add($key, $value[, $exptime]);
 
 Like C<set>, but only stores in memcache if the key doesn't already exist.
 
-=item C<replace>
+=head2 C<replace>
 
-$memd->replace($key, $value[, $exptime]);
+    $memd.replace($key, $value[, $exptime]);
 
 Like C<set>, but only stores in memcache if the key already exists.  The
 opposite of C<add>.
 
-=item C<delete>
+=head2 C<delete>
 
-$memd->delete($key[, $time]);
+    $memd.delete($key[, $time]);
 
-Deletes a key.  You may optionally provide an integer time value (in seconds) to
-tell the memcached server to block new writes to this key for that many seconds.
-(Sometimes useful as a hacky means to prevent races.)  Returns true if key
-was found and deleted, and false otherwise.
+Deletes a key.  You may optionally provide an integer time value (in
+seconds) to tell the memcached server to block new writes to this key for
+that many seconds.  (Sometimes useful as a hacky means to prevent races.)
+Returns true if key was found and deleted, and false otherwise.
 
-You may also use the alternate method name B<remove>, so
-Cache::Memcached looks like the L<Cache::Cache> API.
+=head2 C<incr>
 
-=item C<incr>
-
-$memd->incr($key[, $value]);
+    $memd.incr($key[, $value]);
 
 Sends a command to the server to atomically increment the value for
 $key by $value, or by 1 if $value is undefined.  Returns undef if $key
@@ -830,74 +813,70 @@ doesn't exist on server, otherwise it returns the new value after
 incrementing.  Value should be zero or greater.  Overflow on server
 is not checked.  Be aware of values approaching 2**32.  See decr.
 
-=item C<decr>
+=head2 C<decr>
 
-$memd->decr($key[, $value]);
+    $memd.decr($key[, $value]);
 
 Like incr, but decrements.  Unlike incr, underflow is checked and new
 values are capped at 0.  If server value is 1, a decrement of 2
 returns 0, not -1.
 
-=item C<stats>
+=head2 C<stats>
 
-$memd->stats([$keys]);
+    $memd.stats(@keys);
 
-Returns a hashref of statistical data regarding the memcache server(s),
-the $memd object, or both.  $keys can be an arrayref of keys wanted, a
+Returns a L<Hash> of statistical data regarding the memcache server(s),
+the $memd object, or both.  $keys can be a list  of keys wanted, a
 single key wanted, or absent (in which case the default value is malloc,
 sizes, self, and the empty string).  These keys are the values passed
 to the 'stats' command issued to the memcached server(s), except for
 'self' which is internal to the $memd object.  Allowed values are:
 
-=over 4
-
-=item C<misc>
+=head3 C<misc>
 
 The stats returned by a 'stats' command:  pid, uptime, version,
 bytes, get_hits, etc.
 
-=item C<malloc>
+=head3 C<malloc>
 
 The stats returned by a 'stats malloc':  total_alloc, arena_size, etc.
 
-=item C<sizes>
+=head3 C<sizes>
 
 The stats returned by a 'stats sizes'.
 
-=item C<self>
+=head3 C<self>
 
 The stats for the $memd object itself (a copy of $memd->{'stats'}).
 
-=item C<maps>
+=head3 C<maps>
 
 The stats returned by a 'stats maps'.
 
-=item C<cachedump>
+=head3 C<cachedump>
 
 The stats returned by a 'stats cachedump'.
 
-=item C<slabs>
+=head3 C<slabs>
 
 The stats returned by a 'stats slabs'.
 
-=item C<items>
+=head3 C<items>
 
 The stats returned by a 'stats items'.
 
-=back
+=head2 C<disconnect_all>
 
-=item C<disconnect_all>
-
-$memd->disconnect_all;
+    $memd.disconnect_all;
 
 Closes all cached sockets to all memcached servers.  You must do this
 if your program forks and the parent has used this module at all.
 Otherwise the children will try to use cached sockets and they'll fight
 (as children do) and garble the client/server protocol.
 
-=item C<flush_all>
+=head2 C<flush_all>
 
-$memd->flush_all;
+    $memd.flush_all;
 
 Runs the memcached "flush_all" command on all configured hosts,
 emptying all their caches.  (or rather, invalidating all items
@@ -905,7 +884,6 @@ in the caches in an O(1) operation...)  Running stats will still
 show the item existing, they're just be non-existent and lazily
 destroyed next time you try to detch any of them.
 
-=back
 
 =head1 BUGS
 
