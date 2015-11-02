@@ -5,26 +5,20 @@ use String::CRC32;
 
 unit class Cache::Memcached:auth<cosimo>:ver<0.04>;
 
-has Bool  $!debug = False;
-has Bool  $!no_rehash;
+has Bool  $.debug is rw = False;
+has Bool  $.no-rehash is rw;
 has       %!stats;
-has Int   $.compress_threshold is rw;
-has Bool  $.compress_enable is rw;
 has Bool  $.readonly is rw;
-has       &.stat_callback is rw;
-has       $.select_timeout is rw;
+has       &.stat-callback is rw;
 has Str   $.namespace = "";
 has Int   $!namespace_len = 0;
 has       @!servers = ();
 has       $!active;
 has Str   @.buckets = (); # is rw;
-has Str   $!pref_ip;
 has Int   $!bucketcount = 0;
 has       $!_single_sock = False;
 has       $!_stime;
-has Rat   $!connect_timeout;
-has       &.cb_connect_fail;
-#as Str   $.parser_class is rw = 'Cache::Memcached::GetParser';
+has Rat   $.connect-timeout is rw;
 has       @!buck2sock;
 has Version $!server-version;
 
@@ -38,21 +32,13 @@ submethod BUILD(:@!servers, Bool :$!debug = False, Str :$namespace) {
     }
 
     self.log-debug("Setting servers: ", @!servers);
-    self.set_servers(@!servers);
+    self.set-servers(@!servers);
 }
 
-# Flag definitions
-method F_STORABLE () { return 1 }
 method F_COMPRESS () { return 2 }
 
-# Size savings required before saving compressed value
-method COMPRESS_SAVINGS () { return 0.20 }  # percent
 
 our $VERSION       = '0.04';
-our $HAVE_ZLIB     = 0;
-our $HAVE_SOCKET6  = 0;
-our $HAVE_XS       = 0;
-our $FLAG_NOSIGNAL = 0;
 
 
 our $SOCK_TIMEOUT = 2.6; # default timeout in seconds
@@ -62,12 +48,7 @@ my %cache_sock;  # host -> socket
 my $PROTO_TCP;
 
 
-method set_pref_ip ($ip) {
-    $!pref_ip = $ip
-}
-
-
-method set_servers (@servers) {
+method set-servers (@servers) {
 
     @!servers = @servers;
     $!active = +@servers;
@@ -84,49 +65,9 @@ method set_servers (@servers) {
 }
 
 
-method set_cb_connect_fail (&callback) {
-    &!cb_connect_fail = &callback;
-}
-
-
-method set_connect_timeout ($timeout) {
-    $!connect_timeout = $timeout;
-}
-
-
-method set_debug (Bool $debug = False) {
-    $!debug = $debug;
-}
-
-
-method set_readonly (Bool $ro = False) {
-    $!readonly = $ro;
-}
-
-
-method set_norehash (Bool $no_rehash = False) {
-    $!no_rehash = $no_rehash;
-}
-
-
-method set_compress_threshold (Num $comp_thr) {
-    $!compress_threshold = $comp_thr;
-}
-
-
-method enable_compress (Bool $comp = True) {
-    $!compress_enable = $comp;
-}
-
-
-method forget_dead_hosts () {
+method forget-dead-hosts () {
     %host_dead = ();
     @!buck2sock = ();
-}
-
-
-method set_stat_callback (&callback) {
-    &!stat_callback = &callback;
 }
 
 my %sock_map;  # stringified-$sock -> "$ip:$port"
@@ -209,7 +150,7 @@ method sock-to-host (Str $host) {
         return;
     }
 
-    my $timeout = $!connect_timeout //= 0.25;
+    my $timeout = $!connect-timeout //= 0.25;
     my $sock = connect-sock($ip, $port, $timeout);
 
     if ! $sock {
@@ -240,7 +181,7 @@ method get-sock ($key) {
         my $host = @!buckets[ $hv % $!bucketcount ];
         my $sock = $.sock-to-host($host);
         return $sock if $sock;
-        return if $!no_rehash;
+        return if $!no-rehash;
         $hv += hashfunc($tries ~ $key); # stupid, but works
     }
 
@@ -361,7 +302,7 @@ method delete ($key, $time = "") {
     my $stime;
     my $etime;
 
-    $stime = now if &!stat_callback;
+    $stime = now if &!stat-callback;
 
     my $sock = $.get-sock($key);
     return 0 unless $sock;
@@ -372,9 +313,9 @@ method delete ($key, $time = "") {
     my $cmd = "delete " ~ $!namespace ~ $key ~ $time ~ "\r\n";
     my $res = self.write-and-read($sock, $cmd);
 
-    if &!stat_callback {
+    if &!stat-callback {
         my $etime = now;
-        &!stat_callback.($stime, $etime, $sock, 'delete');        
+        &!stat-callback.($stime, $etime, $sock, 'delete');        
     }
 
     return $res.defined && $res eq "DELETED\r\n";
@@ -406,7 +347,7 @@ method !_set ($cmdname, $key, $val, Int $exptime = 0) {
     my $stime;
     my $etime;
 
-    $stime = now if &!stat_callback;
+    $stime = now if &!stat-callback;
     my $sock = $.get-sock($key);
     return 0 unless $sock;
 
@@ -427,9 +368,9 @@ method !_set ($cmdname, $key, $val, Int $exptime = 0) {
         warn "Cache::Memcache: {$cmdname} {$!namespace}{$key} = {$val} ({$line})\n";
     }
 
-    if &!stat_callback {
+    if &!stat-callback {
         my $etime = Time::HiRes::time();
-        &!stat_callback.($stime, $etime, $sock, $cmdname);
+        &!stat-callback.($stime, $etime, $sock, $cmdname);
     }
     
     return $res.defined && $res eq "STORED\r\n";
@@ -449,7 +390,7 @@ method !incrdecr ($cmdname, $key, $value) {
 
     my $stime;
 
-    $stime = now if &!stat_callback;
+    $stime = now if &!stat-callback;
     my $sock = $.get-sock($key);
     return unless $sock;
 
@@ -459,9 +400,9 @@ method !incrdecr ($cmdname, $key, $value) {
     my $line = "$cmdname " ~ $!namespace ~ "$key $value\r\n";
     my $res = self.write-and-read($sock, $line);
 
-    if &!stat_callback {
+    if &!stat-callback {
         my $etime = now;
-        &!stat_callback.($stime, $etime, $sock, $cmdname);
+        &!stat-callback.($stime, $etime, $sock, $cmdname);
     }
 
     return defined $res && $res eq "STORED\r\n";
@@ -682,8 +623,8 @@ More information is available at:
 
 =head2 method new
 
-Takes one parameter, a hashref of options.  The most important key is
-C<servers>, but that can also be set later with the C<set_servers>
+Takes named parameters.  The most important key is
+C<servers>, but that can also be set later with the C<set-servers>
 method.  The servers must be an arrayref of hosts, each of which is
 either a scalar of the form C<10.0.0.10:11211> or an arrayref of the
 former and an integer weight value.  (The default weight if
@@ -691,11 +632,7 @@ unspecified is 1.)  It's recommended that weight values be kept as low
 as possible, as this module currently allocates memory for bucket
 distribution proportional to the total host weights.
 
-Use C<compress_threshold> to set a compression threshold, in bytes.
-Values larger than this threshold will be compressed by C<set> and
-decompressed by C<get>.
-
-Use C<no_rehash> to disable finding a new memcached server when one
+Use C<no-rehash> to disable finding a new memcached server when one
 goes down.  Your application may or may not need this, depending on
 your expirations and key usage.
 
@@ -710,36 +647,11 @@ to "bar", memcached is actually seeing you set "app1:foo" to "bar".
 The other useful key is C<debug>, which when set to true will produce
 diagnostics on STDERR.
 
-=head2 method set_servers
+=head2 method set-servers
 
 Sets the server list this module distributes key gets and sets between.
 The format is an arrayref of identical form as described in the C<new>
 constructor.
-
-=head2 method set_debug
-
-Sets the C<debug> flag.  See C<new> constructor for more information.
-
-=head2 method set_readonly
-
-Sets the C<readonly> flag.  See C<new> constructor for more information.
-
-=head2 method set_norehash
-
-Sets the C<no_rehash> flag.  See C<new> constructor for more information.
-
-=head2 method set_compress_threshold
-
-Sets the compression threshold. See C<new> constructor for more information.
-
-Currently not yet implemented.
-
-=head2 method enable_compress
-
-Temporarily enable or disable compression.  Has no effect if
-C<compress_threshold> isn't set, but has an overriding effect if it is.
-
-Compression isn't currently implemented.
 
 =head2 method get
 
