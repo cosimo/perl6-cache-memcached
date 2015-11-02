@@ -33,17 +33,17 @@ is($memd.namespace, $ns, "namepace okay");
 
 my $sock;
 
-lives-ok { $sock = $memd.sock_to_host($testaddr) }, "sock_to_host";
+lives-ok { $sock = $memd.sock-to-host($testaddr) }, "sock_to_host";
 
 isa-ok $sock, IO::Socket::INET, "returns a socket";
 
 my $lines;
 
-lives-ok { $lines = $memd._write_and_read($sock, "version\r\n") }, "_write_and_read";
+lives-ok { $lines = $memd.write-and-read($sock, "version\r\n") }, "_write_and_read";
 
 like($lines, /VERSION/, "got version back");
 
-lives-ok { $lines = $memd._write_and_read($sock, "stats\r\n") }, "_write_and_read";
+lives-ok { $lines = $memd.write-and-read($sock, "stats\r\n") }, "_write_and_read";
 
 
 done-testing();
