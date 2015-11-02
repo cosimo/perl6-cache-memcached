@@ -48,7 +48,7 @@ method F_COMPRESS () { return 2 }
 # Size savings required before saving compressed value
 method COMPRESS_SAVINGS () { return 0.20 }  # percent
 
-our $VERSION       = '0.03';
+our $VERSION       = '0.04';
 our $HAVE_ZLIB     = 0;
 our $HAVE_SOCKET6  = 0;
 our $HAVE_XS       = 0;
@@ -132,7 +132,7 @@ method set_stat_callback (&callback) {
 my %sock_map;  # stringified-$sock -> "$ip:$port"
 
 
-method _dead_sock ($sock, $ret, $dead_for) {
+method !dead-sock ($sock, $ret, $dead_for) {
     if $sock.defined {
         if my $ipport = %sock_map{$sock} {
             %host_dead{$ipport} = now + $dead_for if $dead_for;
@@ -145,7 +145,7 @@ method _dead_sock ($sock, $ret, $dead_for) {
 }
 
 
-method _close_sock ($sock) {
+method !close-sock ($sock) {
     if my $ipport = %sock_map{$sock} {
         $sock.close();
         %cache_sock.delete($ipport);
@@ -186,9 +186,9 @@ sub _connect_sock ($sock, $sin, $timeout = 0.25) {
 
 
 # Why is this public? I wouldn't have to worry about undef $self if it weren't.
-method sock_to_host (Str $host) {
+method sock-to-host (Str $host) {
 
-    $.log-debug("sock_to_host");
+    $.log-debug("sock-to-host");
     if %cache_sock{$host} {
         $.log-debug("cache_sock hit");
         return %cache_sock{$host};
@@ -214,7 +214,7 @@ method sock_to_host (Str $host) {
 
     if ! $sock {
         $.log-debug("sock not defined");
-        return self._dead_sock($sock, Nil, 20 + 10.rand.Int);
+        return self!dead-sock($sock, Nil, 20 + 10.rand.Int);
     }
 
     %sock_map{$sock} = $host;
@@ -227,7 +227,7 @@ method sock_to_host (Str $host) {
 method get_sock ($key) {
 
     if $!_single_sock {
-        return $.sock_to_host($!_single_sock);
+        return $.sock-to-host($!_single_sock);
     }
 
     return unless $!active;
@@ -238,7 +238,7 @@ method get_sock ($key) {
 
     while $tries++ < 20 {
         my $host = @!buckets[ $hv % $!bucketcount ];
-        my $sock = $.sock_to_host($host);
+        my $sock = $.sock-to-host($host);
         return $sock if $sock;
         return if $!no_rehash;
         $hv += _hashfunc($tries ~ $key); # stupid, but works
@@ -285,7 +285,7 @@ method disconnect_all () {
 # writes a line, then reads result.  by default stops reading after a
 # single line, but caller can override the $check_complete subref,
 # which gets passed a scalarref of buffer read thus far.
-method _write_and_read (IO::Socket $sock, Str $command, Mu $check_complete?) {
+method write-and-read (IO::Socket $sock, Str $command, Mu $check_complete?) {
 
     my $res;
     my $ret = Mu; 
@@ -315,7 +315,7 @@ method _write_and_read (IO::Socket $sock, Str $command, Mu $check_complete?) {
         if $to_send > 0 {
             my $sent = $sock.print($line);
             if $sent == 0 {
-                self._close_sock($sock);
+                self!close-sock($sock);
                 return;
             }
             $to_send -= $sent;
@@ -346,7 +346,7 @@ method _write_and_read (IO::Socket $sock, Str $command, Mu $check_complete?) {
 
     # Improperly finished
     unless $state == 2 {
-        self._dead_sock($sock);
+        self!dead-sock($sock);
         return;
     }
 
@@ -370,7 +370,7 @@ method delete ($key, $time = "") {
 
     # TODO support array keys
     my $cmd = "delete " ~ $!namespace ~ $key ~ $time ~ "\r\n";
-    my $res = $._write_and_read($sock, $cmd);
+    my $res = self.write-and-read($sock, $cmd);
 
     if &!stat_callback {
         my $etime = now;
@@ -382,26 +382,26 @@ method delete ($key, $time = "") {
 
 
 method add ($key, $value) {
-    $._set('add', $key, $value);
+    self!_set('add', $key, $value);
 }
 
 method replace ($key, $value) {
-    $._set('replace', $key, $value);
+    self!_set('replace', $key, $value);
 }
 
 method set ($key, $value) {
-    $._set('set', $key, $value);
+    self!_set('set', $key, $value);
 }
 
 method append ($key, $value) {
-    $._set('append', $key, $value);
+    self!_set('append', $key, $value);
 }
 
 method prepend ($key, $value) {
-    $._set('prepend', $key, $value);
+    self!_set('prepend', $key, $value);
 }
 
-method _set ($cmdname, $key, $val, Int $exptime = 0) {
+method !_set ($cmdname, $key, $val, Int $exptime = 0) {
     return 0 if ! $!active || $!readonly;
     my $stime;
     my $etime;
@@ -420,7 +420,7 @@ method _set ($cmdname, $key, $val, Int $exptime = 0) {
     #$exptime //= 0;
     #$exptime = $exptime.Int;
     my $line = "$cmdname " ~ $!namespace ~ "$key $flags $exptime $len\r\n$val\r\n";
-    my $res  = $._write_and_read($sock, $line);
+    my $res  = self.write-and-read($sock, $line);
 
     if $!debug && $line {
         $line.chop.chop;
@@ -437,14 +437,14 @@ method _set ($cmdname, $key, $val, Int $exptime = 0) {
 }
 
 method incr ($key, $offset) {
-    $._incrdecr("incr", $key, $offset);
+    self!incrdecr("incr", $key, $offset);
 }
 
 method decr ($key, $offset) {
-    $._incrdecr("decr", $key, $offset);
+    self!incrdecr("decr", $key, $offset);
 }
 
-method _incrdecr ($cmdname, $key, $value) {
+method !incrdecr ($cmdname, $key, $value) {
     return if ! $!active || $!readonly;
 
     my $stime;
@@ -457,7 +457,7 @@ method _incrdecr ($cmdname, $key, $value) {
     $value = 1 unless defined $value;
 
     my $line = "$cmdname " ~ $!namespace ~ "$key $value\r\n";
-    my $res = $._write_and_read($sock, $line);
+    my $res = self.write-and-read($sock, $line);
 
     if &!stat_callback {
         my $etime = now;
@@ -511,7 +511,7 @@ method flush_all () {
     my @hosts = @!buckets;
 
     for @hosts -> $host {
-        my $sock = $.sock_to_host($host);
+        my $sock = $.sock-to-host($host);
         my @res = $.run_command($sock, "flush_all\r\n");
         $success = 0 unless @res == 1 && @res[0] eq "OK\r\n";
     }
@@ -529,7 +529,7 @@ method run_command ($sock, $cmd) {
     my $ret = "";
     my $line = $cmd;
 
-    while (my $res = self._write_and_read($sock, $line)) {
+    while (my $res = self.write-and-read($sock, $line)) {
         $line = "";
         $ret ~= $res;
         $.log-debug("Received [$res] total [$ret]");
@@ -570,16 +570,16 @@ method stats(*@types) {
 
         HOST: 
         for @hosts -> $host {
-            my $sock = $.sock_to_host($host);
+            my $sock = $.sock-to-host($host);
             next HOST unless $sock;
             TYPE: 
             for @types.grep({ $_ !~~ /^self$/ }) -> $typename {
                 my $type = $typename eq 'misc' ?? "" !! " $typename";
-                my $lines = $._write_and_read($sock, "stats$type\r\n", -> $bref {
+                my $lines = self.write-and-read($sock, "stats$type\r\n", -> $bref {
                     return $bref ~~ /:m^[END|ERROR]\r?\n/;
                 });
                 unless ($lines) {
-                    $._dead_sock($sock);
+                    self!dead-sock($sock);
                     next HOST;
                 }
 
@@ -628,11 +628,11 @@ method stats_reset ($types) returns Bool {
 
     if $!active {
         for @!buckets -> $host {
-            my $sock = self.sock_to_host($host);
+            my $sock = self.sock-to-host($host);
             next unless $sock;
-            my $ok = self._write_and_read($sock, "stats reset");
+            my $ok = self.write-and-read($sock, "stats reset");
             unless (defined $ok && $ok eq "RESET\r\n") {
-                self._dead_sock($sock);
+                self!dead-sock($sock);
             }
         }
         $rc = True;
