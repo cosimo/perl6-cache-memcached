@@ -3,7 +3,7 @@ use v6;
 
 use String::CRC32;
 
-unit class Cache::Memcached:auth<cosimo>:ver<0.04>;
+unit class Cache::Memcached:auth<cosimo>:ver<0.0.5>;
 
 has Bool  $.debug is rw = False;
 has Bool  $.no-rehash is rw;
@@ -35,10 +35,7 @@ submethod BUILD(:@!servers, Bool :$!debug = False, Str :$namespace) {
     self.set-servers(@!servers);
 }
 
-method F_COMPRESS () { return 2 }
-
-
-our $VERSION       = '0.04';
+our $VERSION       = v0.0.5;
 
 
 our $SOCK_TIMEOUT = 2.6; # default timeout in seconds
