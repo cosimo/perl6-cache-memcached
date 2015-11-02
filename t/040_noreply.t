@@ -31,7 +31,7 @@ isa-ok($memd, 'Cache::Memcached');
 
 constant count = 30;
 
-$memd.flush_all;
+$memd.flush-all;
 
 $memd.add("key", "add");
 is($memd.get("key"), "add");
