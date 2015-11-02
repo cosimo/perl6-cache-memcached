@@ -155,7 +155,7 @@ method !close-sock ($sock) {
 }
 
 
-sub _connect_sock ($sock, $sin, $timeout = 0.25) {
+sub connect-sock ($sock, $sin, $timeout = 0.25) returns IO::Socket {
 
     # make the socket non-blocking from now on,
     # except if someone wants 0 timeout, meaning
@@ -210,7 +210,7 @@ method sock-to-host (Str $host) {
     }
 
     my $timeout = $!connect_timeout //= 0.25;
-    my $sock = _connect_sock($ip, $port, $timeout);
+    my $sock = connect-sock($ip, $port, $timeout);
 
     if ! $sock {
         $.log-debug("sock not defined");
@@ -224,7 +224,7 @@ method sock-to-host (Str $host) {
 }
 
 
-method get_sock ($key) {
+method get-sock ($key) {
 
     if $!_single_sock {
         return $.sock-to-host($!_single_sock);
@@ -363,7 +363,7 @@ method delete ($key, $time = "") {
 
     $stime = now if &!stat_callback;
 
-    my $sock = $.get_sock($key);
+    my $sock = $.get-sock($key);
     return 0 unless $sock;
 
     %!stats<delete>++;
@@ -407,7 +407,7 @@ method !_set ($cmdname, $key, $val, Int $exptime = 0) {
     my $etime;
 
     $stime = now if &!stat_callback;
-    my $sock = $.get_sock($key);
+    my $sock = $.get-sock($key);
     return 0 unless $sock;
 
     my $app_or_prep = ($cmdname eq 'append' or $cmdname eq 'prepend') ?? 1 !! 0;
@@ -450,7 +450,7 @@ method !incrdecr ($cmdname, $key, $value) {
     my $stime;
 
     $stime = now if &!stat_callback;
-    my $sock = $.get_sock($key);
+    my $sock = $.get-sock($key);
     return unless $sock;
 
     %!stats{$cmdname}++;
@@ -474,7 +474,7 @@ method get ($key) {
     my $hv = _hashfunc($key);
     $.log-debug("get(): hash value '$hv'");
 
-    my $sock = $.get_sock($key);
+    my $sock = $.get-sock($key);
     if $sock.defined {
         $.log-debug("get(): socket '$sock'");
 
