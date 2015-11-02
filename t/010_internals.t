@@ -1,5 +1,6 @@
 use v6;
 use Test;
+use CheckSocket;
 use Cache::Memcached;
 
 plan 8;
@@ -7,14 +8,10 @@ plan 8;
 my $testaddr = "127.0.0.1:11211";
 my $port = 11211;
 
-try {
-   my $msock = IO::Socket::INET.new(host => $testaddr, port => $port);
-   CATCH {
-      default {
-         skip-rest "No memcached instance running at $testaddr";
-         exit;
-      }
-   }
+if not check-socket($port, "127.0.0.1") {
+    skip-rest "no memcached server"; 
+    exit;
+
 }
 
 my $memd;

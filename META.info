@@ -4,6 +4,7 @@
     "description" : "Interface to memcached service",
     "provides"    : { "Cache::Memcached": "lib/Cache/Memcached.pm" },
     "depends"     : [ "String::CRC32" ],
+    "test-depends" : [ "CheckSocket" ],
     "author"      : "Cosimo Streppone",
     "authority"   : "cosimo",
     "source-url"  : "git://github.com/cosimo/perl6-cache-memcached.git"
