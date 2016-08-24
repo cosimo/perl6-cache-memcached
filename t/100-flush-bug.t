@@ -23,17 +23,14 @@ my @res = (
 plan +@res;
 
 
-if not check-socket($port, "127.0.0.1") {
-    skip-rest "no memcached server"; 
-    exit;
-
-}
 
 my $p = start {
     
-    my $sock = IO::Socket::INET.new( host => $testaddr, listen => True);
+    diag "server";
+    my $sock = IO::Socket::INET.new( localhost => $testaddr, nl-in => "\r\n",listen => True);
     my $csock = $sock.accept();
-    while (defined (my $buf = <$csock>)) {
+    for $csock.lines -> $buf {
+       diag "while $buf";
         my $res = @res.shift;
         $csock.send($res[0]);
     }
@@ -44,11 +41,17 @@ my $p = start {
 # give the forked server a chance to startup
 sleep 1;
 
-my $memd = Cache::Memcached.new( servers   => [ $testaddr ] );
+if not check-socket($port, "127.0.0.1") {
+    skip-rest "no memcached server"; 
+    exit;
+
+}
+
+my $memd = Cache::Memcached.new( servers   => [ $testaddr ], :debug );
 
 for @res <-> $v {
-    ($v[0] ~~ s:g/\W//);
-    is $memd.flush_all, $v[1], $v[0];
+    #($v[0] ~~ s:g/\W//);
+    is $memd.flush-all, $v[1], $v[0];
 }
 
 done-testing();
