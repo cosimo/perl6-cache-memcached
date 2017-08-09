@@ -7,13 +7,13 @@ use Test;
 use Cache::Memcached;
 use CheckSocket;
 
-plan 7;
+plan 11;
 
 my $testaddr = "127.0.0.1:11211";
 my $port = 11211;
 
 if not check-socket($port, "127.0.0.1") {
-    skip-rest "no memcached server"; 
+    skip-rest "no memcached server";
     exit;
 
 }
@@ -31,7 +31,7 @@ constant count = 30;
 $memd.flush-all;
 
 $memd.add("key", "add");
-is($memd.get("key"), "add");
+is($memd.get("key"), "add", "added a value");
 
 for ^count -> $i {
     $memd.set("key", $i);
@@ -49,9 +49,15 @@ is($memd.get("key"), count + 2 * count, "value should now be " ~ count + 2 * cou
 for ^count -> $i {
     $memd.decr("key", 1);
 }
-is($memd.get("key"), count + 1 * count);
+is(my $count = $memd.get("key"), count + 1 * count, "got the correct decremented value");
+
+lives-ok { $memd.incr("key") }, "incr with a default value";
+is $memd.get("key"), $count + 1, "and it was incremented";
+
+lives-ok { $memd.decr("key") }, "decr with a default value";
+is $memd.get("key"), $count, "and got the expected value back";
 
 $memd.delete("key");
-is($memd.get("key"), Nil);
+is($memd.get("key"), Nil, "key is deleted");
 
 done-testing();
