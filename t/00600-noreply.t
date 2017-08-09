@@ -7,7 +7,7 @@ use Test;
 use Cache::Memcached;
 use CheckSocket;
 
-plan 12;
+plan 15;
 
 my $testaddr = "127.0.0.1:11211";
 my $port = 11211;
@@ -28,7 +28,11 @@ isa-ok($memd, 'Cache::Memcached');
 
 constant count = 30;
 
-$memd.flush-all;
+
+$memd.set("foobar", 42);
+is $memd.get("foobar"), 42, "set a random key";
+lives-ok { $memd.flush-all }, "flush-all";
+is $memd.get("foobar"), Nil, "Key is unavailable";
 
 $memd.add("key", "add");
 is($memd.get("key"), "add", "added a value");

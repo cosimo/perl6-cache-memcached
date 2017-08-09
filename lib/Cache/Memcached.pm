@@ -450,16 +450,15 @@ sub hashfunc(Str $key) {
 
 
 method flush-all () {
-    my $success = 1;
+    my Bool $success = True;
     my @hosts = @!buckets;
 
     for @hosts -> $host {
         my $sock = $.sock-to-host($host);
-        my @res = $.run-command($sock, "flush-all\r\n");
-        $success = 0 unless @res == 1 && @res[0] eq "OK\r\n";
+        my @res = $.run-command($sock, "flush_all\r\n");
+        $success =  False unless @res == 1 && @res[0] eq "OK\r\n";
     }
-
-    return $success;
+    $success;
 }
 
 
