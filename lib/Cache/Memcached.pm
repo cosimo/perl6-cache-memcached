@@ -375,35 +375,39 @@ method !_set ($cmdname, $key, $val, Int $exptime = 0) {
 
 }
 
-method incr ($key, $offset = 1) {
+method incr ($key, $offset = 1 --> Bool) {
     self!incrdecr("incr", $key, $offset);
 }
 
-method decr ($key, $offset = 1) {
+method decr ($key, $offset = 1 --> Bool) {
     self!incrdecr("decr", $key, $offset);
 }
 
-method !incrdecr ($cmdname, $key, $value) {
-    return if ! $!active || $!readonly;
+method !incrdecr ($cmdname, $key, $value = 1 --> Bool) {
 
-    my $stime;
+    my Bool $rc = False;
 
-    $stime = now if &!stat-callback;
-    my $sock = $.get-sock($key);
-    return unless $sock;
 
-    %!stats{$cmdname}++;
-    $value = 1 unless defined $value;
+    if $!active && !$!readonly {
+        my $stime;
 
-    my $line = "$cmdname " ~ $!namespace ~ "$key $value\r\n";
-    my $res = self.write-and-read($sock, $line);
+        $stime = now if &!stat-callback;
+        my $sock = $.get-sock($key);
 
-    if &!stat-callback {
-        my $etime = now;
-        &!stat-callback.($stime, $etime, $sock, $cmdname);
+        if $sock {
+            %!stats{$cmdname}++;
+            my $line = "$cmdname " ~ $!namespace ~ "$key $value\r\n";
+            my $res = self.write-and-read($sock, $line);
+
+            if &!stat-callback {
+                my $etime = now;
+                &!stat-callback.($stime, $etime, $sock, $cmdname);
+            }
+            $rc = $res.defined && $res eq "STORED\r\n";
+        }
     }
 
-    return defined $res && $res eq "STORED\r\n";
+    $rc;
 }
 
 
