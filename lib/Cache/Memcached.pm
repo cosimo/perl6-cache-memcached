@@ -79,7 +79,7 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.8> {
             }
         }
         @!buck2sock = ();
-        return $ret;
+        $ret;
     }
 
 
@@ -119,46 +119,46 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.8> {
             }
         }
 
-        return $ret;
+        $ret;
     }
 
 
 # Why is this public? I wouldn't have to worry about undef $self if it weren't.
     method sock-to-host (Str $host) {
+        my $sock;
 
         $.log-debug("sock-to-host");
         if %cache_sock{$host} {
             $.log-debug("cache_sock hit");
-            return %cache_sock{$host};
+            $sock = %cache_sock{$host};
+        }
+        elsif !%host_dead{$host} || %host_dead{$host} ≤ now {
+
+            my $now = time;
+            my $ip;
+            my $port;
+
+            if $host ~~ m/ (.*) \: (\d+) / {
+                $ip = $0.Str;
+                $port = $1.Int;
+                # Get rid of optional IPv6 brackets
+                $ip ~~ s:g [ \[ | \] ] = '' if $ip.defined;
+            }
+
+            my $timeout = $!connect-timeout //= 0.25;
+            $sock = connect-sock($ip, $port, $timeout);
+
+            if ! $sock {
+                $.log-debug("sock not defined");
+                $sock = self!dead-sock($sock, Nil, 20 + 10.rand.Int);
+            }
+            else {
+                %sock_map{$sock} = $host;
+                %cache_sock{$host} = $sock;
+            }
         }
 
-        my $now = time;
-        my $ip;
-        my $port;
-
-        if $host ~~ m/ (.*) \: (\d+) / {
-            $ip = $0.Str;
-            $port = $1.Int;
-            # Get rid of optional IPv6 brackets
-            $ip ~~ s:g [ \[ | \] ] = '' if $ip.defined;
-        }
-
-        if %host_dead{$host} && %host_dead{$host} > $now {
-            return;
-        }
-
-        my $timeout = $!connect-timeout //= 0.25;
-        my $sock = connect-sock($ip, $port, $timeout);
-
-        if ! $sock {
-            $.log-debug("sock not defined");
-            return self!dead-sock($sock, Nil, 20 + 10.rand.Int);
-        }
-
-        %sock_map{$sock} = $host;
-        %cache_sock{$host} = $sock;
-
-        return $sock;
+        $sock;
     }
 
 
@@ -166,7 +166,7 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.8> {
         my $sock;
 
         if $!_single_sock {
-            return $.sock-to-host($!_single_sock);
+            $sock = $.sock-to-host($!_single_sock);
         }
         elsif $!active {
             my $hv = hashfunc($key);
@@ -205,7 +205,7 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.8> {
         }
         $!bucketcount = +@!buckets;
 
-        return $!bucketcount;
+        $!bucketcount;
     }
 
 
