@@ -3,7 +3,7 @@ use v6.c;
 
 use String::CRC32;
 
-class Cache::Memcached:auth<cosimo>:ver<0.0.8> {
+class Cache::Memcached:auth<cosimo>:ver<0.0.9> {
 
     has Bool  $.debug is rw = False;
     has Bool  $.no-rehash is rw;
