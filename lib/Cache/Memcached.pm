@@ -322,24 +322,24 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.8> {
     }
 
 
-    method add ($key, $value) {
-        self!_set('add', $key, $value);
+    method add($key, $value, Int $exptime = 0 --> Bool) {
+        self!_set('add', $key, $value, $exptime);
     }
 
-    method replace ($key, $value) {
-        self!_set('replace', $key, $value);
+    method replace($key, $value, Int $exptime = 0 --> Bool) {
+        self!_set('replace', $key, $value, $exptime);
     }
 
-    method set ($key, $value) {
-        self!_set('set', $key, $value);
+    method set($key, $value, Int $exptime = 0 --> Bool) {
+        self!_set('set', $key, $value, $exptime);
     }
 
-    method append ($key, $value) {
-        self!_set('append', $key, $value);
+    method append($key, $value, Int $exptime = 0 --> Bool) {
+        self!_set('append', $key, $value, $exptime);
     }
 
-    method prepend ($key, $value) {
-        self!_set('prepend', $key, $value);
+    method prepend($key, $value, Int $exptime = 0 --> Bool) {
+        self!_set('prepend', $key, $value, $exptime);
     }
 
     method !_set ($cmdname, $key, $val, Int $exptime = 0 --> Bool ) {
@@ -358,9 +358,6 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.8> {
                 my $flags = 0;
                 my $len = $val.chars;
 
-                # TODO COMPRESS THRESHOLD support
-                #$exptime //= 0;
-                #$exptime = $exptime.Int;
                 my $line = "$cmdname " ~ $!namespace ~ "$key $flags $exptime $len\r\n$val\r\n";
                 my $res  = self.write-and-read($sock, $line);
 
@@ -381,15 +378,15 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.8> {
 
     }
 
-    method incr ($key, $offset = 1 --> Bool) {
-        self!incrdecr("incr", $key, $offset);
+    method incr($key, Int $offset = 1, Int :$init --> Bool) {
+        self!incrdecr("incr", $key, $offset, :$init);
     }
 
-    method decr ($key, $offset = 1 --> Bool) {
-        self!incrdecr("decr", $key, $offset);
+    method decr($key, Int $offset = 1, Int :$init --> Bool) {
+        self!incrdecr("decr", $key, $offset, :$init);
     }
 
-    method !incrdecr ($cmdname, $key, $value = 1 --> Bool) {
+    method !incrdecr(Str $cmdname, $key, $value = 1, Int :$init --> Bool) {
 
         my Bool $rc = False;
 
@@ -402,6 +399,9 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.8> {
 
             if $.get-sock($key) -> $sock {
                 %!stats{$cmdname}++;
+                if $init.defined {
+                    $.add($key, $init);
+                }
                 my $line = "$cmdname " ~ $!namespace ~ "$key $value\r\n";
                 my $res = self.write-and-read($sock, $line);
 
@@ -409,7 +409,7 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.8> {
                     my $etime = now;
                     &!stat-callback.($stime, $etime, $sock, $cmdname);
                 }
-                $rc = $res.defined && $res eq "STORED\r\n";
+                $rc = $res.defined && $res !~~  /^(NOT_FOUND|CLIENT_ERROR)/;
             }
         }
 
