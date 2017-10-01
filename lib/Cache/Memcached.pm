@@ -35,11 +35,6 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.9> {
         self.set-servers(@!servers);
     }
 
-    our $VERSION       = v0.0.5;
-
-
-    our $SOCK_TIMEOUT = 2.6; # default timeout in seconds
-
     my %host_dead;   # host -> unixtime marked dead until
     my %cache_sock;  # host -> socket
     my $PROTO_TCP;
