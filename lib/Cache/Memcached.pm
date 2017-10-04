@@ -11,13 +11,11 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.9> {
     has Bool  $.readonly is rw;
     has       &.stat-callback is rw;
     has Str   $.namespace = "";
-    has Int   $!namespace_len = 0;
     has       @!servers = ();
     has       $!active;
     has Str   @.buckets = (); # is rw;
     has Int   $!bucketcount = 0;
-    has       $!_single_sock = False;
-    has       $!_stime;
+    has       $!single-sock = False;
     has Rat   $.connect-timeout is rw;
     has       @!buck2sock;
     has Version $!server-version;
@@ -49,10 +47,10 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.9> {
         $!bucketcount = 0;
         $.init-buckets();
         @!buck2sock = ();
-        $!_single_sock = Mu;
+        $!single-sock = Mu;
 
         if +@servers == 1 {
-            $!_single_sock = @servers[0];
+            $!single-sock = @servers[0];
         }
     }
 
@@ -160,8 +158,8 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.9> {
     method get-sock ($key) {
         my $sock;
 
-        if $!_single_sock {
-            $sock = $.sock-to-host($!_single_sock);
+        if $!single-sock {
+            $sock = $.sock-to-host($!single-sock);
         }
         elsif $!active {
             my $hv = hashfunc($key);
