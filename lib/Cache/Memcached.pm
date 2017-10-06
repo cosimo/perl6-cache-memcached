@@ -116,8 +116,7 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.9> {
     }
 
 
-# Why is this public? I wouldn't have to worry about undef $self if it weren't.
-    method sock-to-host (Str $host) {
+    method sock-to-host(Str $host) {
         my $sock;
 
         $.log-debug("sock-to-host");
@@ -159,7 +158,7 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.9> {
         my $sock;
 
         if $!single-sock {
-            $sock = $.sock-to-host($!single-sock);
+            $sock = self.sock-to-host($!single-sock);
         }
         elsif $!active {
             my $hv = hashfunc($key);
@@ -167,7 +166,7 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.9> {
 
             while $tries++ < 20 {
                 my $host = @!buckets[ $hv % $!bucketcount ];
-                $sock = $.sock-to-host($host);
+                $sock = self.sock-to-host($host);
                 last if $sock || $!no-rehash;
                 $hv += hashfunc($tries ~ $key); # stupid, but works
             }
@@ -450,7 +449,7 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.9> {
         my @hosts = @!buckets;
 
         for @hosts -> $host {
-            my $sock = $.sock-to-host($host);
+            my $sock = self.sock-to-host($host);
             my @res = $.run-command($sock, "flush_all\r\n");
             $success =  False unless @res == 1 && @res[0] eq "OK\r\n";
         }
@@ -508,7 +507,7 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.9> {
 
             HOST:
             for @hosts -> $host {
-                my $sock = $.sock-to-host($host);
+                my $sock = self.sock-to-host($host);
                 next HOST unless $sock;
                 TYPE:
                 for @types.grep({ $_ !~~ /^self$/ }) -> $typename {
