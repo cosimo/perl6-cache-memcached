@@ -353,9 +353,9 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.9> {
                 my $line = "$cmdname " ~ $!namespace ~ "$key $flags $exptime $len\r\n$val\r\n";
                 my $res  = self.write-and-read($sock, $line);
 
-                if $!debug && $line {
+                if $line {
                     $line.chop.chop;
-                    warn "Cache::Memcache: {$cmdname} {$!namespace}{$key} = {$val} ({$line})\n";
+                    $.log-debug("Cache::Memcache: {$cmdname} {$!namespace}{$key} = {$val} ({$line})");
                 }
 
                 if &!stat-callback {
