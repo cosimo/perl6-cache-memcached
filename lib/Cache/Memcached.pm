@@ -286,7 +286,7 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.9> {
         $!active && !$!readonly;
     }
 
-    method delete ($key, $time = "" --> Bool) {
+    method delete($key, $time = "" --> Bool) {
         my Bool $rc = False;
         if $.writeable {
 
