@@ -3,7 +3,7 @@ use v6.c;
 
 use String::CRC32;
 
-class Cache::Memcached:auth<cosimo>:ver<0.0.9> {
+class Cache::Memcached:auth<cosimo>:ver<0.0.9> does Associative {
 
     has Bool  $.debug is rw = False;
     has Bool  $.no-rehash is rw;
@@ -409,7 +409,7 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.9> {
     }
 
 
-    method get ($key) {
+    method get(Str:D $key) {
 
         my @res;
 
@@ -434,6 +434,33 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.9> {
         }
 
         return @res[1].defined ?? @res[1] !! Nil;
+    }
+
+    multi method AT-KEY(Cache::Memcached:D $self: $key) {
+        Proxy.new(
+            FETCH => method () {
+                $self.get($key);
+            },
+            STORE => method ($val) {
+                $self.set($key, $val);
+            }
+        );
+    }
+
+    method DELETE-KEY(Cache::Memcached:D: $key) {
+        my $val = self.get($key);
+        if $val.defined {
+            self.delete($key);
+        }
+        $val;
+    }
+
+    method ASSIGN-KEY(Cache::Memcached:D: $key, $val) {
+        self.set($key, $val);
+    }
+
+    method EXISTS-KEY(Cache::Memcached:D: $key --> Bool) {
+        self.get($key).defined;
     }
 
     sub hashfunc(Str $key) {
