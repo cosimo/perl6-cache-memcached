@@ -591,9 +591,44 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.9> does Associative {
                 }
             }
         }
-
         return %stats_hr;
     }
+
+    method slab-numbers() {
+        self.stats("slabs")<hosts>.values.map({ $_<slabs>})>>.keys.flat.unique;
+
+    }
+
+    method keys() {
+        my @keys;
+        my $ns = $!namespace;
+        for @!buckets.map({ self.sock-to-host($_) }).grep({ .defined }) -> $sock {
+            for self.slab-numbers -> $slab {
+                my $lines = self.write-and-read($sock, "stats cachedump $slab 0\r\n", -> $bref {
+                    return $bref ~~ /:m^[END|ERROR]\r?\n/;
+                });
+
+                if $lines ~~ m:global/^^'ITEM ' $ns$<key> = [ \S+ ]/ {
+                    for $/.list -> $item {
+                        @keys.push: ~$item<key>;
+                    }
+                }
+            }
+        }
+        @keys.sort.unique;
+    }
+
+    method pairs() {
+        gather {
+            for self.keys -> $key {
+                if self.get($key) -> $value {
+                    take $key => $value;
+                }
+            }
+        }
+    }
+
+
 
     method stats-reset ($types) returns Bool {
 
