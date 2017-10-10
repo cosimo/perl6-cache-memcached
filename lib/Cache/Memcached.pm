@@ -572,10 +572,19 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.9> does Associative {
                             }
                         }
                     }
+                    elsif $typename eq 'slabs' {
+                        my %slabs;
+                        for @lines -> $line {
+                            if $line ~~ / 'STAT ' $<slab> = [ \d+ ]\: $<key> = [ \S+ ] \s+ $<value> = [ \d+ ] / {
+                                %slabs{~$/<slab>}{~$/<key>} = ~$/<value>
+                            }
+                        }
+                         %stats_hr<hosts>{$host}{$typename} = %slabs;
+                    }
                     else {
                         # This stat is not key-value so just pull it
                         # all out in one blob.
-                        $lines ~~ s:m/^END\r?\n//;
+                        $lines ~~ s:m/^^END\r?\n//;
                         %stats_hr<hosts>{$host}{$typename} ||= "";
                         %stats_hr<hosts>{$host}{$typename} ~= "$lines";
                     }
