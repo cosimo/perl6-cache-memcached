@@ -18,7 +18,7 @@
     	"source": "git://github.com/cosimo/perl6-cache-memcached.git",
 		"bugtracker": "https://github.com/cosimo/perl6-cache-memcached/issues"
 	},
-	"tags" : [ "cache", "memcached" ],
+	"tags" : [ "cache", "memcached", "CPAN5" ],
     "source-url": "git://github.com/cosimo/perl6-cache-memcached.git",
     "meta-version" : 0
 }
