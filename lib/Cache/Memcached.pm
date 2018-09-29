@@ -3,7 +3,7 @@ use v6.c;
 
 use String::CRC32;
 
-class Cache::Memcached:auth<cosimo>:ver<0.0.10> does Associative {
+class Cache::Memcached:auth<cosimo>:ver<0.0.11> does Associative {
 
     has Bool  $.debug is rw = False;
     has Bool  $.no-rehash is rw;
