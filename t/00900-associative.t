@@ -5,8 +5,6 @@ use Test;
 use Cache::Memcached;
 use CheckSocket;
 
-plan 12;
-
 my $testaddr = "127.0.0.1";
 my $port = 11211;
 
