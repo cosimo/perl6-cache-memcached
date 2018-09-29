@@ -9,4 +9,4 @@ perl6:
   - latest
 install:
   - rakudobrew build-zef
-  - zef --/test --deps-only install .
+  - zef --deps-only install .
