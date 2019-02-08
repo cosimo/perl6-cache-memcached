@@ -603,10 +603,12 @@ class Cache::Memcached:auth<cosimo>:ver<0.0.11> does Associative {
         my @keys;
         my $ns = $!namespace;
         for @!buckets.map({ self.sock-to-host($_) }).grep({ .defined }) -> $sock {
+            self.write-and-read($sock, "stats items\r\n");
             for self.slab-numbers -> $slab {
-                my $lines = self.write-and-read($sock, "stats cachedump $slab 0\r\n", -> $bref {
-                    return $bref ~~ /:m^[END|ERROR]\r?\n/;
-                });
+                self.log-debug("SLAB: $slab");
+                my $lines = self.write-and-read($sock, "stats cachedump $slab 0\r\n");
+                self.log-debug("NS: $ns");
+                self.log-debug("LINES: $lines");
 
                 if $lines ~~ m:global/^^'ITEM ' $ns$<key> = [ \S+ ]/ {
                     for $/.list -> $item {

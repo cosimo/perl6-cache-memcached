@@ -9,6 +9,7 @@ my $testaddr = "127.0.0.1";
 my $port = 11211;
 
 if not check-socket($port, "127.0.0.1") {
+    plan 1;
     skip-rest "no memcached server"; 
     exit;
 
@@ -17,6 +18,7 @@ if not check-socket($port, "127.0.0.1") {
 my $memd = Cache::Memcached.new(
     servers   => [ "$testaddr:$port" ],
     namespace => "Cache::Memcached::t/$*PID/" ~ (now % 100) ~ "/",
+    debug => so %*ENV<MDEBUG>,
 );
 
 lives-ok { $memd<test-test-key> = "test value" }, "set as associative";
@@ -25,9 +27,16 @@ is $memd<test-test-key>, "test value" , "and got the right value back";
 is $memd<test-test-key>:delete, "test value" , "delete key and get the right value back";
 nok $memd<test-test-key>:exists, "and it no longer exists";
 
-for <foo bar baz> -> $key {
-    $memd{$key} = (^1000).pick;
+my %data = foo => (^1000).pick, bar => (^1000).pick, baz => (^1000).pick;
+
+for %data.pairs -> $pair {
+    $memd{$pair.key} = $pair.value;
+    ok $memd{$pair.key}:exists, "added { $pair }";
 }
+
+my @keys = %data.keys;
+
+ok so all(@keys) ∈ $memd.keys.list, 'keys returns the keys we expected';
 
 for $memd.keys -> $key {
     ok $memd{$key}:exists, "key $key exists";
